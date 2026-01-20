@@ -1,26 +1,162 @@
 @import "tailwindcss";
-
-:root {
-	--background: #ffffff;
-	--foreground: #171717;
+@plugin "daisyui" {
+  themes: light, dark;
 }
 
-@theme inline {
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
 @media (prefers-color-scheme: dark) {
-	:root {
-		--background: #0a0a0a;
-		--foreground: #ededed;
-	}
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 
 body {
-	background: var(--background);
-	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Static Grid Background Pattern */
+.bg-grid-pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-size: 40px 40px;
+  background-image:
+    linear-gradient(to right, rgba(228, 228, 231, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(228, 228, 231, 0.5) 1px, transparent 1px);
+}
+
+/* Dark mode grid colors */
+@media (prefers-color-scheme: dark) {
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, rgba(38, 38, 38, 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(38, 38, 38, 0.5) 1px, transparent 1px);
+  }
+}
+
+/* Radial gradient for faded edges */
+.bg-grid-fade {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 20%, var(--background) 80%);
+}
+
+/* Noisy texture for cards */
+.card-noisy {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-noisy::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* Dark mode noise is more visible */
+@media (prefers-color-scheme: dark) {
+  .card-noisy::before {
+    opacity: 0.05;
+  }
+}
+
+/* 3D Hover Effect */
+.hover-3d {
+  perspective: 1000px;
+  display: block;
+}
+
+.hover-3d > div {
+  transition: transform 0.1s;
+  transform-style: preserve-3d;
+}
+
+.hover-3d:hover > div {
+  transition: transform 0.1s;
+}
+
+.hover-3d > div:nth-child(2) {
+  transform: translateZ(20px);
+}
+
+.hover-3d > div:nth-child(3) {
+  transform: translateZ(40px);
+}
+
+.hover-3d > div:nth-child(4) {
+  transform: translateZ(60px);
+}
+
+.hover-3d > div:nth-child(5) {
+  transform: translateZ(80px);
+}
+
+.hover-3d > div:nth-child(6) {
+  transform: translateZ(100px);
+}
+
+.hover-3d > div:nth-child(7) {
+  transform: translateZ(120px);
+}
+
+.hover-3d > div:nth-child(8) {
+  transform: translateZ(140px);
+}
+
+.hover-3d > div:nth-child(9) {
+  transform: translateZ(160px);
+}
+
+/* Shimmer Effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  .shimmer::before {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      transparent 100%
+    );
+  }
 }
