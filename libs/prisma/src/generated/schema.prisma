@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                String        @id @default(cuid())
+  email             String?       @unique
+  emailVerified     Boolean       @default(false)
+  name              String?
+  image             String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  accounts          Account[]
+  sessions          Session[]
+  githubUsername    String?       @unique
+  githubId          Int?          @unique
+  profileSummary    String?
+  profileHighlights String?
+  achievements      Achievement[]
+  badges            Badge[]
+  skills            Skill[]
+  analysisJobs      AnalysisJob[]
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+}
+
+model Achievement {
+  id          String              @id @default(cuid())
+  title       String
+  description String
+  impact      ImpactLevel
+  category    AchievementCategory
+  skills      String
+  proofUrl    String
+  proofType   ProofType           @default(PULL_REQUEST)
+  signature   String?
+  achievedAt  DateTime
+  createdAt   DateTime            @default(now())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, achievedAt])
+  @@index([userId, impact])
+}
+
+enum ImpactLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AchievementCategory {
+  FEATURE
+  BUGFIX
+  SECURITY
+  PERFORMANCE
+  REFACTOR
+  DOCUMENTATION
+  TESTING
+  DEVOPS
+  ARCHITECTURE
+}
+
+enum ProofType {
+  PULL_REQUEST
+  COMMIT
+  RELEASE
+}
+
+model Badge {
+  id          String    @id @default(cuid())
+  type        BadgeType
+  name        String
+  description String
+  earnedAt    DateTime
+  criteria    String
+  evidence    String
+  signature   String?
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+}
+
+enum BadgeType {
+  PROLIFIC_SHIPPER
+  CENTURY_CLUB
+  CODE_REVIEWER
+  REVIEW_CHAMPION
+  AUTH_EXPERT
+  SECURITY_FOCUSED
+  PERFORMANCE_OPTIMIZER
+  CONSISTENT_CONTRIBUTOR
+  STREAK_MASTER
+  OPEN_SOURCE_CONTRIBUTOR
+  DOCUMENTATION_HERO
+  TESTING_CHAMPION
+}
+
+model Skill {
+  id            String        @id @default(cuid())
+  name          String
+  category      SkillCategory
+  level         SkillLevel
+  evidenceCount Int           @default(0)
+  firstUsed     DateTime
+  lastUsed      DateTime
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId, level])
+}
+
+enum SkillCategory {
+  LANGUAGE
+  FRAMEWORK
+  DATABASE
+  DEVOPS
+  TESTING
+  OTHER
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+model AnalysisJob {
+  id           String    @id @default(cuid())
+  userId       String
+  status       JobStatus @default(PENDING)
+  progress     Int       @default(0)
+  currentStep  String?
+  errorMessage String?
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+}
+
+enum JobStatus {
+  PENDING
+  FETCHING_DATA
+  ANALYZING
+  GENERATING_ACHIEVEMENTS
+  COMPLETED
+  FAILED
+}

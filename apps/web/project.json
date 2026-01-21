@@ -1,0 +1,28 @@
+{
+  "name": "web",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/web",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "options": {
+        "assets": [
+          "apps/web/public",
+          {
+            "input": "libs/ui/src/i18n",
+            "glob": "**/*.json",
+            "output": "public/locales"
+          }
+        ]
+      }
+    },
+    "serve": {
+      "executor": "@nx/next:server",
+      "options": {
+        "buildTarget": "web:build",
+        "dev": true
+      }
+    }
+  }
+}
