@@ -14,11 +14,12 @@
 /coverage
 
 # next.js
-/.next/
+apps/web/.next/
 /out/
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -50,3 +51,11 @@ next-env.d.ts
 
 
 !.dev.vars.example
+
+# Prisma
+/libs/prisma/migrations
+wrangler.jsonc
+
+.nx/cache
+.nx/workspace-data
+.vscode
