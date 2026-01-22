@@ -2,8 +2,16 @@ import 'dotenv/config';
 import { betterAuth } from 'better-auth';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { PrismaClient } from '@verified-prof/prisma';
-import { getEnvSafely } from '@verified-prof/config';
+import { PrismaClient } from '../../../prisma/src/generated';
+import { encrypt } from './encrypt';
+
+const getEnvSafely = (envKey: string) => {
+  const envVal = process.env[envKey];
+  if (!envVal && process.env['NODE_ENV'] === 'production') {
+    throw new Error(`Missing env variable ${envKey}!`);
+  }
+  return envVal ?? '';
+};
 
 const connectionString = getEnvSafely('DATABASE_URL');
 const adapter = new PrismaPg({ connectionString });
@@ -55,6 +63,32 @@ export const auth = betterAuth({
         type: 'number',
         required: false,
         unique: true,
+      },
+    },
+  },
+  databaseHooks: {
+    account: {
+      create: {
+        async before(account) {
+          const withEncryptedTokens = { ...account };
+          if (account.accessToken) {
+            const encryptedAccessToken = encrypt(
+              account.accessToken,
+              account.userId,
+            );
+            withEncryptedTokens.accessToken = encryptedAccessToken;
+          }
+          if (account.refreshToken) {
+            const encryptedRefreshToken = encrypt(
+              account.refreshToken,
+              account.userId,
+            );
+            withEncryptedTokens.refreshToken = encryptedRefreshToken;
+          }
+          return {
+            data: withEncryptedTokens,
+          };
+        },
       },
     },
   },
