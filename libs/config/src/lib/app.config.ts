@@ -21,16 +21,17 @@ export const appConfig = registerAs(APP_CONFIG_REGISTER_KEY, () => ({
   app: {
     appBaseUrl: getEnvSafely('APP_BASE_URL'),
     origin: getEnvSafely('ALLOWED_ORIGINS')?.split(','),
+    vcsProvider: process.env['DEFAULT_VCS_PROVIDER'],
   },
   github: {
     clientId: getEnvSafely('GITHUB_CLIENT_ID'),
     clientSecret: getEnvSafely('GITHUB_CLIENT_SECRET'),
     redirectUrl: getEnvSafely('GITHUB_REDIRECT_URL'),
   },
-  analysis: {
-    protocol: process.env['ANALYSIS_PROTOCOL'] || 'http',
-    host: process.env['ANALYSIS_HOST'] || '127.0.0.1',
-    port: Number(process.env['ANALYSIS_PORT']) || 3030,
+  worker: {
+    protocol: process.env['WORKER_PROTOCOL'] || 'http',
+    host: process.env['WORKER_HOST'] || '127.0.0.1',
+    port: Number(process.env['WORKER_PORT']) || 4200,
     get url() {
       return `${this.protocol}://${this.host}:${this.port}`;
     },
