@@ -25,6 +25,13 @@ model User {
   badges         Badge[]
   skills         Skill[]
   analysisJobs   AnalysisJob[]
+  currentProfile      UserCurrentProfile?
+  snapshots           AnalysisSnapshot[]
+  providerConnections ProviderConnection[]
+  settings            UserSettings?
+  verificationClaims  VerificationClaim[]
+  skillEvidence       SkillEvidence[]
+  skillAssessments    SkillAssessment[]
 }
 
 model Account {
@@ -81,6 +88,8 @@ model Verification {
 
 model Achievement {
   id            String       @id @default(cuid())
+  snapshotId    String?
+  userId        String
   title         String
   description   String
   impact        ImpactLevel
@@ -91,9 +100,18 @@ model Achievement {
   signature     String?
   achievedAt    DateTime
   createdAt     DateTime     @default(now())
-  userId        String
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  confidence    Float?
+  provider      ProviderType @default(GITHUB)
+  providerData  Json?
+  proofHash     String?
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshot      AnalysisSnapshot? @relation(fields: [snapshotId], references: [id])
 
+  @@index([snapshotId])
+  @@index([verificationStatus])
   @@index([userId, achievedAt])
   @@index([userId, impact])
 }
@@ -125,6 +143,8 @@ enum ProofType {
 
 model Badge {
   id            String     @id @default(cuid())
+  snapshotId    String?
+  userId        String
   type          BadgeType
   name          String
   description   String
@@ -132,10 +152,14 @@ model Badge {
   criteria      String
   evidence      String
   signature     String?
-  userId        String
+  verificationStatus VerificationStatus @default(PENDING)
+  confidence    Float?
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshot      AnalysisSnapshot? @relation(fields: [snapshotId], references: [id])
 
+  @@unique([snapshotId, type])
   @@unique([userId, type])
+  @@index([verificationStatus])
 }
 
 enum BadgeType {
@@ -155,16 +179,30 @@ enum BadgeType {
 
 model Skill {
   id            String     @id @default(cuid())
+  snapshotId    String?
+  userId        String
   name          String
   category      SkillCategory
   level         SkillLevel
   evidenceCount Int        @default(0)
   firstUsed     DateTime
   lastUsed      DateTime
-  userId        String
+  verificationStatus VerificationStatus @default(PENDING)
+  confidence    Float?
+  evidenceSummary Json?
+  lastVerifiedAt DateTime?
+  stalenessScore Int?
+  nextReviewAt   DateTime?
+  providerBreakdown Json?
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshot      AnalysisSnapshot? @relation(fields: [snapshotId], references: [id])
+  evidence       SkillEvidence[]
+  assessments    SkillAssessment[]
 
+  @@unique([snapshotId, name])
   @@unique([userId, name])
+  @@index([verificationStatus])
+  @@index([stalenessScore])
   @@index([userId, level])
 }
 
@@ -193,9 +231,23 @@ model AnalysisJob {
   errorMessage  String?
   startedAt     DateTime     @default(now())
   completedAt   DateTime?
+  triggerType   TriggerType  @default(MANUAL)
+  triggerMetadata Json?
+  priority      JobPriority  @default(NORMAL)
+  retryCount    Int          @default(0)
+  maxRetries    Int          @default(3)
+  provider      ProviderType @default(GITHUB)
+  providerData  Json?
+  apiCallsUsed  Int          @default(0)
+  aiTokensUsed  Int          @default(0)
+  estimatedCost Float        @default(0)
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots     AnalysisSnapshot[]
+  fingerprints  DataFingerprint[]
 
   @@index([userId, status])
+  @@index([status, priority(sort: Asc)])
+  @@index([triggerType])
 }
 
 enum JobStatus {
@@ -205,4 +257,589 @@ enum JobStatus {
   GENERATING_ACHIEVEMENTS
   COMPLETED
   FAILED
+}
+
+// Job progress tracking for UI
+model JobProgress {
+  id              String   @id @default(cuid())
+  jobId           String   @unique
+  userId          String
+  type            String   // JobType enum as string
+  status          String   // JobStatus enum as string
+  progress        Int      @default(0)
+  currentStep     String?
+  totalSteps      Int?
+  completedSteps  Int?
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  error           String?
+  metadata        Json?
+  
+  @@index([userId, startedAt(sort: Desc)])
+  @@index([type, status])
+}
+
+enum commitType {
+  FEATURE
+  BUGFIX
+  REFACTOR
+  DOCS
+}
+
+
+// Immutable snapshot of a single analysis run
+model AnalysisSnapshot {
+  id              String   @id @default(cuid())
+  userId          String
+  jobId           String   @unique
+  createdAt       DateTime @default(now())
+  dataFingerprints Json
+  modelInfo        Json
+  summary          Json
+  status           SnapshotStatus @default(PENDING)
+  skipReason       String?
+  cacheHit         Boolean  @default(false)
+  cachedFromId     String?
+  achievements     Achievement[]
+  badges           Badge[]
+  skills           Skill[]
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job              AnalysisJob @relation(fields: [jobId], references: [id])
+  userCurrentProfiles UserCurrentProfile[]
+  commitSignals CommitSignal[]
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+}
+// Individual commit signal
+model CommitSignal {
+  id          String   @id @default(cuid())
+  snapshotId  String
+
+  repo        String
+  occurredAt  DateTime
+
+  languages   String[] // ["TypeScript", "JavaScript"]
+  filesChanged Int
+  linesAdded   Int
+  linesDeleted Int
+
+  type        commitType
+  weight      Float
+
+  isSigned    Boolean
+  isMerge     Boolean
+  isTrivial   Boolean
+  isGenerated Boolean
+
+  snapshot AnalysisSnapshot @relation(fields: [snapshotId], references: [id])
+  qualityMetrics CommitQualityMetrics?
+}
+
+// Commit quality metrics - stores analysis results (not content)
+model CommitQualityMetrics {
+  id                String   @id @default(cuid())
+  commitSignalId    String   @unique
+  userId            String
+  snapshotId        String
+
+  // Quality scores (0-100)
+  overallScore      Float
+  disciplineScore   Float
+  clarityScore      Float
+  impactScore       Float
+  consistencyScore  Float
+
+  // Normalized component scores
+  scopeScore        Float    // Commit size appropriateness
+  messageScore      Float    // Message quality
+  reviewScore       Float    // Code review thoroughness
+  testingScore      Float    // Test coverage/quality
+  documentationScore Float   // Documentation updates
+
+  // Flags
+  isDisciplined     Boolean  // Meets size/scope thresholds
+  isClear           Boolean  // Good message + code clarity
+  isImpactful       Boolean  // Meaningful contribution
+  isConsistent      Boolean  // Matches user patterns
+  hasAntiPatterns   Boolean  // Gaming signals detected
+
+  // Metadata
+  commitSha         String
+  repositoryName    String
+  detectedLanguages String[]
+  filesChanged      Int
+  linesAdded        Int
+  linesDeleted      Int
+  analyzedAt        DateTime @default(now())
+
+  // Anti-gaming signals
+  suspicionScore    Float    @default(0)  // 0-100, higher = more suspicious
+  flagReasons       String[] // ["rapid_commits", "trivial_changes", "mass_deletions"]
+
+  // Relations
+  commitSignal      CommitSignal @relation(fields: [commitSignalId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([snapshotId])
+  @@index([overallScore(sort: Desc)])
+  @@index([suspicionScore(sort: Desc)])
+  @@index([analyzedAt(sort: Desc)])
+}
+
+// Temporal quality metrics - aggregated over time windows
+model TemporalMetrics {
+  id               String   @id @default(cuid())
+  userId           String
+  snapshotId       String
+  windowDays       Int      // 30, 60, or 90
+
+  // Aggregate scores
+  avgOverallScore  Float
+  avgDiscipline    Float
+  avgClarity       Float
+  avgImpact        Float
+  avgConsistency   Float
+
+  // Volume metrics
+  totalCommits     Int
+  disciplinedCommits Int
+  clearCommits     Int
+  impactfulCommits Int
+
+  // Quality trends
+  trendDirection   String   // "improving", "stable", "declining"
+  trendStrength    Float    // 0-1, how strong the trend is
+
+  // Anti-gaming metrics
+  flaggedCommits   Int      @default(0)
+  suspicionRate    Float    @default(0)  // % of commits flagged
+
+  // Timestamps
+  windowStart      DateTime
+  windowEnd        DateTime
+  calculatedAt     DateTime @default(now())
+
+  @@unique([userId, snapshotId, windowDays])
+  @@index([userId])
+  @@index([windowDays])
+  @@index([calculatedAt(sort: Desc)])
+}
+
+// Quality weighting profiles - domain-specific thresholds
+model QualityWeightingProfile {
+  id                String   @id @default(cuid())
+  userId            String
+  profileName       String   // "Backend", "Frontend", "ML", "DevOps"
+  isActive          Boolean  @default(false)
+
+  // Size thresholds
+  maxLinesPerCommit Int      @default(500)
+  maxFilesPerCommit Int      @default(15)
+  minLinesForReview Int      @default(50)
+
+  // Weight adjustments (multipliers)
+  disciplineWeight  Float    @default(1.0)
+  clarityWeight     Float    @default(1.0)
+  impactWeight      Float    @default(1.0)
+  consistencyWeight Float    @default(1.0)
+
+  // Language preferences
+  primaryLanguages  String[] // ["TypeScript", "Python"]
+  frameworkContext  String[] // ["Next.js", "NestJS"]
+
+  // Created metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, profileName])
+  @@index([userId, isActive])
+}
+
+// Quality violations - anti-gaming incident log
+model QualityViolation {
+  id               String   @id @default(cuid())
+  userId           String
+  commitSignalId   String
+  violationType    String   // "rapid_commits", "trivial_changes", "mass_deletions", "pattern_gaming"
+
+  // Violation details
+  severity         String   // "low", "medium", "high", "critical"
+  description      String
+  evidence         Json     // Additional context data
+
+  // Impact
+  penaltyApplied   Boolean  @default(false)
+  penaltyAmount    Float?   // Score reduction applied
+
+  // Resolution
+  resolved         Boolean  @default(false)
+  resolvedAt       DateTime?
+  resolvedBy       String?  // userId of resolver (for appeals)
+  resolution       String?  // "false_positive", "confirmed", "manual_review"
+
+  // Timestamps
+  detectedAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([violationType])
+  @@index([severity])
+  @@index([resolved])
+  @@index([detectedAt(sort: Desc)])
+}
+
+// User's current active profile
+model UserCurrentProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+
+  currentSnapshotId String   @unique
+
+  lastAnalyzedAt    DateTime
+  totalAchievements Int      @default(0)
+  totalBadges       Int      @default(0)
+  totalSkills       Int      @default(0)
+
+  displayName       String?
+  tagline           String?
+  topSkills         String[]
+  badgeLevel        String?
+
+  isPublic          Boolean  @default(false)
+  slug              String?  @unique
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User                 @relation(fields: [userId], references: [id])
+  currentSnapshot   AnalysisSnapshot    @relation(fields: [currentSnapshotId], references: [id])
+
+  @@index([isPublic])
+  @@index([slug])
+}
+
+// Data fingerprints for change detection
+model DataFingerprint {
+  id                String   @id @default(cuid())
+  userId            String
+
+  provider          ProviderType
+  resourceType      FingerprintResourceType
+  resourceIdentifier String
+
+  fingerprint       String
+  itemCount         Int
+  dateRange         Json?
+
+  lastFetchedAt     DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  analysisJobId     String
+  analysisJob       AnalysisJob @relation(fields: [analysisJobId], references: [id])
+
+  @@unique([userId, provider, resourceType, resourceIdentifier, analysisJobId])
+  @@index([userId, provider, resourceType])
+  @@index([fingerprint])
+  @@index([lastFetchedAt])
+}
+
+// Skill evidence (without raw data)
+model SkillEvidence {
+  id            String   @id @default(cuid())
+  skillId       String
+  userId        String
+
+  evidenceType  EvidenceType
+  provider      ProviderType
+
+  resourceUrl   String
+  resourceHash  String
+
+  context       Json
+
+  verified      Boolean  @default(false)
+  verifiedAt    DateTime?
+
+  occurredAt    DateTime
+  createdAt     DateTime @default(now())
+
+  skill         Skill    @relation(fields: [skillId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([skillId])
+  @@index([evidenceType])
+  @@index([resourceHash])
+  @@index([occurredAt(sort: Desc)])
+}
+
+// Skill assessment (human/AI verification)
+model SkillAssessment {
+  id            String   @id @default(cuid())
+  skillId       String
+  userId        String
+
+  assessmentType AssessmentType
+  assessorId    String?
+
+  assignedLevel SkillLevel
+  confidence    Float
+
+  criteriaMet   Json
+  feedback      String?
+  recommendations String?
+
+  assessedAt    DateTime @default(now())
+  validUntil    DateTime?
+
+  skill         Skill    @relation(fields: [skillId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([skillId])
+  @@index([assessmentType])
+  @@index([validUntil])
+}
+
+// Verification claims (credential-like)
+model VerificationClaim {
+  id            String   @id @default(cuid())
+  userId        String
+
+  claimType     ClaimType
+  title         String
+  description   String
+
+  verifiedLevel String
+  issuedBy      String
+  issuedAt      DateTime @default(now())
+  expiresAt     DateTime?
+
+  evidenceSummary Json
+
+  status        ClaimStatus @default(PENDING)
+  confidence    Float
+
+  signature     String
+  claimHash     String
+
+  verificationUrl String
+
+  isRevoked     Boolean  @default(false)
+  revokedAt     DateTime?
+  revocationReason String?
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([claimHash])
+  @@index([verificationUrl])
+}
+
+// Analysis cache
+model AnalysisCache {
+  id            String   @id @default(cuid())
+
+  cacheKey      String   @unique
+  inputHash     String
+
+  modelInfo     Json
+  results       Json
+
+  hitCount      Int      @default(0)
+  lastHitAt     DateTime?
+
+  validUntil    DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([cacheKey])
+  @@index([validUntil])
+}
+
+// Provider connections
+model ProviderConnection {
+  id                String   @id @default(cuid())
+  userId            String
+
+  provider          ProviderType
+  username          String
+  providerUserId    String?
+
+  isConnected       Boolean  @default(true)
+  lastSyncedAt      DateTime?
+  syncStatus        SyncStatus @default(ACTIVE)
+
+  scopes            String[]
+
+  webhookEnabled    Boolean  @default(false)
+  webhookUrl        String?
+  webhookSecret     String?
+  webhookEvents     String[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, provider])
+}
+
+// Webhook events
+model WebhookEvent {
+  id            String   @id @default(cuid())
+  connectionId  String
+
+  provider      ProviderType
+  eventType     String
+  eventId       String   @unique
+
+  payload       Json
+
+  processed     Boolean  @default(false)
+  processedAt   DateTime?
+  error         String?
+
+  actionTaken   String?
+
+  receivedAt    DateTime @default(now())
+
+  @@unique([provider, eventId])
+  @@index([connectionId])
+  @@index([processed])
+  @@index([receivedAt(sort: Desc)])
+}
+
+// User settings
+model UserSettings {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+
+  autoAnalyze   Boolean  @default(true)
+  analyzeFrequency String  @default("weekly")
+
+  emailNotifications Boolean @default(false)
+  notificationEmail   String?
+
+  profileVisibility ProfileVisibility @default(PRIVATE)
+  showEmail     Boolean  @default(false)
+  showStats     Boolean  @default(true)
+
+  theme         String   @default("auto")
+  language      String   @default("en")
+
+  allowPeerVerification Boolean @default(true)
+  requireExpertVerification Boolean @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+// Snapshot and Analysis
+enum SnapshotStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  SKIPPED_NO_CHANGES
+  SKIPPED_RATE_LIMITED
+}
+
+enum ProviderType {
+  GITHUB
+  GITLAB
+  BITBUCKET
+  STACKOVERFLOW
+}
+
+enum FingerprintResourceType {
+  PROFILE
+  REPOS
+  COMMITS
+  PULL_REQUESTS
+  ISSUES
+  CODE_REVIEWS
+  CONTRIBUTIONS
+  ACTIVITY
+}
+
+enum EvidenceType {
+  CODE_COMMIT
+  PR_MERGED
+  CODE_REVIEW
+  ISSUE_COMMENT
+  README_MENTION
+  WIKI_EDIT
+  FORKED_REPO
+  STARRED_REPO
+  DISCUSSION
+}
+
+enum AssessmentType {
+  AI_INITIAL
+  AI_PERIODIC
+  HUMAN_PEER
+  HUMAN_EXPERT
+  HUMAN_SELF
+  AUTOMATED_TEST
+}
+
+// Verification and Claims
+enum ClaimType {
+  SKILL_LANGUAGE
+  SKILL_FRAMEWORK
+  SKILL_DATABASE
+  ROLE_FULL_STACK
+  ROLE_FRONTEND
+  ROLE_BACKEND
+  ROLE_DEVOPS
+  EXPERIENCE_SENIOR
+  EXPERIENCE_LEAD
+  EXPERIENCE_ARCHITECT
+  ACHIEVEMENT_OSS
+  ACHIEVEMENT_MENTOR
+}
+
+enum ClaimStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+  PENDING
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  MANUALLY_VERIFIED
+  REJECTED
+  FLAGGED
+}
+
+// Sync and Jobs
+enum SyncStatus {
+  ACTIVE
+  SYNCING
+  ERROR
+  DISABLED
+  RATE_LIMITED
+}
+
+enum TriggerType {
+  MANUAL
+  SCHEDULED
+  WEBHOOK
+  ADMIN
+  SYSTEM
+}
+
+enum JobPriority {
+  IMMEDIATE
+  HIGH
+  NORMAL
+  LOW
+  DEFERRED
+}
+
+// User Preferences
+enum ProfileVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
 }
