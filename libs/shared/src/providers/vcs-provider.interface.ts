@@ -1,5 +1,3 @@
-import { Readable } from 'stream';
-
 /**
  * Supported VCS provider types
  */
@@ -71,6 +69,7 @@ export interface RepositoryData {
   htmlUrl: string;
   description?: string;
   language?: string;
+  languages?: Record<string, number>;
   stargazers?: number;
   watchers?: number;
   forks?: number;
@@ -152,6 +151,12 @@ export interface PullRequestData {
  */
 export interface IVcsProvider {
   /**
+   * Initialize the provider with authentication token
+   * Creates the underlying client instance
+   */
+  initialize(token: string): void;
+
+  /**
    * Get provider type
    */
   getProviderType(): VcsProviderType;
@@ -177,46 +182,12 @@ export interface IVcsProvider {
   ): Promise<CommitData[]>;
 
   /**
-   * Get file content from a commit
-   */
-  getFileContent(
-    owner: string,
-    repo: string,
-    path: string,
-    ref?: string,
-  ): Promise<string>;
-
-  /**
-   * Get repository data
-   */
-  getRepository(owner: string, repo: string): Promise<RepositoryData>;
-
-  /**
    * List all repositories for a user
    */
   getUserRepositories(
     username: string,
     options?: { perPage?: number; page?: number },
   ): Promise<RepositoryData[]>;
-
-  /**
-   * Get user profile data
-   */
-  getUser(username: string): Promise<UserData>;
-
-  /**
-   * Get authenticated user data
-   */
-  getAuthenticatedUser(): Promise<UserData>;
-
-  /**
-   * Get pull requests/merge requests
-   */
-  getPullRequest(
-    owner: string,
-    repo: string,
-    prNumber: number,
-  ): Promise<PullRequestData>;
 
   /**
    * List pull requests
@@ -241,14 +212,12 @@ export interface IVcsProvider {
   ): Promise<CommitData[]>;
 
   /**
-   * Stream large file content (for tests, diffs, etc.)
+   * Get programming languages used in a repository with byte counts
    */
-  getFileStream(
+  getRepositoryLanguages(
     owner: string,
     repo: string,
-    path: string,
-    ref?: string,
-  ): Promise<Readable>;
+  ): Promise<Record<string, number>>;
 
   /**
    * Rate limit status
