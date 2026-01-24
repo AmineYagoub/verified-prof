@@ -54,8 +54,10 @@ next-env.d.ts
 
 # Prisma
 /libs/prisma/migrations
+/libs/prisma/src/generated
 wrangler.jsonc
 
 .nx/cache
 .nx/workspace-data
 .vscode
+tmp/
