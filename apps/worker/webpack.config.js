@@ -15,10 +15,7 @@ module.exports = {
         test: /\.js$/,
         enforce: 'pre',
         use: ['source-map-loader'],
-        exclude: [
-          /node_modules/,
-          /libs\/prisma\/src\/generated/,
-        ],
+        exclude: [/node_modules/, /libs\/prisma\/src\/generated/],
       },
     ],
   },
