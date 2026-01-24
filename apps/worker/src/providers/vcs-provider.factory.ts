@@ -83,7 +83,8 @@ export class VcsProviderFactory implements IVcsProviderFactory {
 
     switch (type) {
       case VcsProviderType.GITHUB: {
-        const ghProvider = new GitHubVcsProvider(token);
+        const ghProvider = new GitHubVcsProvider();
+        ghProvider.initialize(token);
         return ghProvider;
       }
       case VcsProviderType.GITLAB:

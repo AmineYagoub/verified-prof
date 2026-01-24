@@ -1,15 +1,13 @@
+import { Injectable, Logger } from '@nestjs/common';
 import { Octokit } from '@octokit/rest';
-import { Readable } from 'stream';
-import { Logger, Injectable } from '@nestjs/common';
 import {
-  IVcsProvider,
-  VcsProviderType,
+  ChangedFile,
   CommitData,
-  RepositoryData,
-  UserData,
+  IVcsProvider,
   ListCommitsOptions,
   PullRequestData,
-  ChangedFile,
+  RepositoryData,
+  VcsProviderType,
 } from '@verified-prof/shared';
 
 type GitHubCommit = Awaited<
@@ -22,9 +20,6 @@ type GitHubRepositoryListItem = Awaited<
   ReturnType<Octokit['rest']['repos']['listForUser']>
 >['data'][number];
 type GitHubRepository = GitHubRepositoryDetails | GitHubRepositoryListItem;
-type GitHubUser = Awaited<
-  ReturnType<Octokit['rest']['users']['getByUsername']>
->['data'];
 type GitHubPullRequestDetail = Awaited<
   ReturnType<Octokit['rest']['pulls']['get']>
 >['data'];
@@ -37,9 +32,9 @@ type GitHubFile = GitHubCommit['files'][number];
 @Injectable()
 export class GitHubVcsProvider implements IVcsProvider {
   private readonly logger = new Logger(GitHubVcsProvider.name);
-  private octokit: Octokit;
+  private octokit!: Octokit;
 
-  constructor(token: string) {
+  initialize(token: string): void {
     this.octokit = new Octokit({
       auth: token,
     });
@@ -105,80 +100,22 @@ export class GitHubVcsProvider implements IVcsProvider {
     }
   }
 
-  async getRepository(owner: string, repo: string): Promise<RepositoryData> {
-    try {
-      const response = await this.octokit.rest.repos.get({
-        owner,
-        repo,
-      });
-
-      return this.mapGitHubRepoToRepositoryData(response.data);
-    } catch (error) {
-      this.logger.error(`Failed to get repository ${owner}/${repo}`, error);
-      throw error;
-    }
-  }
-
   async getUserRepositories(
     username: string,
     options?: { perPage?: number; page?: number },
   ): Promise<RepositoryData[]> {
     try {
-      const response = await this.octokit.rest.repos.listForUser({
-        username,
+      const repos = await this.octokit.rest.repos.listForAuthenticatedUser({
         per_page: options?.perPage || 30,
         page: options?.page || 1,
+        affiliation: 'owner,collaborator,organization_member',
         sort: 'updated',
-        direction: 'desc',
       });
-
-      return response.data.map((repo) =>
+      return repos.data.map((repo: GitHubRepositoryListItem) =>
         this.mapGitHubRepoToRepositoryData(repo),
       );
     } catch (error) {
       this.logger.error(`Failed to list repositories for ${username}`, error);
-      throw error;
-    }
-  }
-
-  async getUser(username: string): Promise<UserData> {
-    try {
-      const response = await this.octokit.rest.users.getByUsername({
-        username,
-      });
-
-      return this.mapGitHubUserToUserData(response.data);
-    } catch (error) {
-      this.logger.error(`Failed to get user ${username}`, error);
-      throw error;
-    }
-  }
-
-  async getAuthenticatedUser(): Promise<UserData> {
-    try {
-      const response = await this.octokit.rest.users.getAuthenticated();
-      return this.mapGitHubUserToUserData(response.data);
-    } catch (error) {
-      this.logger.error('Failed to get authenticated user', error);
-      throw error;
-    }
-  }
-
-  async getPullRequest(
-    owner: string,
-    repo: string,
-    prNumber: number,
-  ): Promise<PullRequestData> {
-    try {
-      const response = await this.octokit.rest.pulls.get({
-        owner,
-        repo,
-        pull_number: prNumber,
-      });
-
-      return this.mapGitHubPullRequestToPullRequestData(response.data);
-    } catch (error) {
-      this.logger.error(`Failed to get PR ${owner}/${repo}#${prNumber}`, error);
       throw error;
     }
   }
@@ -264,18 +201,19 @@ export class GitHubVcsProvider implements IVcsProvider {
     }
   }
 
-  async getFileStream(
+  async getRepositoryLanguages(
     owner: string,
     repo: string,
-    path: string,
-    ref?: string,
-  ): Promise<Readable> {
+  ): Promise<Record<string, number>> {
     try {
-      const content = await this.getFileContent(owner, repo, path, ref);
-      return Readable.from([content]);
+      const response = await this.octokit.rest.repos.listLanguages({
+        owner,
+        repo,
+      });
+      return response.data;
     } catch (error) {
-      this.logger.error(`Failed to stream file ${path}`, error);
-      throw error;
+      this.logger.error(`Failed to get languages for ${owner}/${repo}`, error);
+      return {};
     }
   }
 
@@ -351,25 +289,6 @@ export class GitHubVcsProvider implements IVcsProvider {
       ownerUrl: ghRepo.owner?.html_url,
       ownerUsername: ghRepo.owner?.login,
       ownerAvatar: ghRepo.owner?.avatar_url,
-    };
-  }
-
-  private mapGitHubUserToUserData(ghUser: GitHubUser): UserData {
-    return {
-      id: String(ghUser.id),
-      username: ghUser.login,
-      email: ghUser.email || undefined,
-      name: ghUser.name || undefined,
-      avatarUrl: ghUser.avatar_url,
-      profileUrl: ghUser.html_url,
-      bio: ghUser.bio || undefined,
-      location: ghUser.location || undefined,
-      publicRepos: ghUser.public_repos,
-      followers: ghUser.followers,
-      following: ghUser.following,
-      createdAt: new Date(ghUser.created_at),
-      updatedAt: ghUser.updated_at ? new Date(ghUser.updated_at) : undefined,
-      provider: VcsProviderType.GITHUB,
     };
   }
 
