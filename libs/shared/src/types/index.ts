@@ -5,6 +5,7 @@ export * from './profile';
 export * from './skill';
 export * from './verification';
 export * from './quality';
+export * from './quality-api';
 export * from './jobs';
 export * from './ai';
 export * from './ai-events';
