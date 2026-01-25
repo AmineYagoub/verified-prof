@@ -6,18 +6,39 @@ import {
   QualityAnalysisRequest,
   QualityAnalysisResponse,
   DomainConfig,
-  QualityWeightingProfile,
   CommitData,
 } from '@verified-prof/shared';
 import {
   CommitScorerService,
   QualityMetricsResult,
 } from './services/commit-scorer.service';
+
+// Local interface for quality weighting (hardcoded thresholds for Phase 1)
+interface QualityWeightingProfile {
+  userId: string;
+  profileName: string;
+  isActive: boolean;
+  maxLinesPerCommit: number;
+  maxFilesPerCommit: number;
+  minLinesForReview: number;
+  disciplineWeight: number;
+  clarityWeight: number;
+  impactWeight: number;
+  consistencyWeight: number;
+  primaryLanguages: string[];
+  frameworkContext: string[];
+}
 import { AntiGamingDetectorService } from './services/anti-gaming-detector.service';
 import { RepoAllocatorService } from './services/repo-allocator.service';
 import { PersistenceService } from './services/persistence.service';
 import { TemporalAnalyzerService } from './services/temporal-analyzer.service';
-import { QualityExplanationService } from '../ai/services/quality-explanation.service';
+import { PrismaService } from '@verified-prof/prisma';
+import {
+  QualityMetricsResponse,
+  TemporalMetricsResponse,
+  AchievementQualityResponse,
+  CommitMetricsResponse,
+} from '@verified-prof/shared';
 
 @Injectable()
 export class QualityService {
@@ -31,7 +52,7 @@ export class QualityService {
     private readonly repoAllocator: RepoAllocatorService,
     private readonly persistence: PersistenceService,
     private readonly temporalAnalyzer: TemporalAnalyzerService,
-    private readonly qualityExplanation: QualityExplanationService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -43,9 +64,12 @@ export class QualityService {
 
     const provider = await this.providerFactory.createProviderForUser(userId);
     const repos = await provider.getUserRepositories(userId, {
-      perPage: 2,
+      perPage: policy.repositoriesPerPage,
       page: 1,
     });
+
+    // Enforce maxRepositories limit
+    const reposToAnalyze = repos.slice(0, policy.maxRepositories);
     const since = new Date(
       Date.now() - policy.windowDays * 24 * 60 * 60 * 1000,
     );
@@ -54,7 +78,7 @@ export class QualityService {
       result: QualityAnalysisResponse | unknown;
     }> = [];
 
-    const repoInfos = repos.map((repo) => ({
+    const repoInfos = reposToAnalyze.map((repo) => ({
       fullName: repo.fullName,
       language: repo.language || null,
       pushedAt: repo.pushedAt || null,
@@ -68,7 +92,7 @@ export class QualityService {
       policy.maxCommits,
     );
 
-    for (const repo of repos) {
+    for (const repo of reposToAnalyze) {
       const owner = repo.ownerUsername || repo.fullName.split('/')[0];
       const repoName = repo.name;
       const params: QualityAnalysisRequest = {
@@ -81,10 +105,28 @@ export class QualityService {
 
       const perRepoMax = allocationResult.allocations[repo.fullName] || 0;
       if (perRepoMax <= 0) continue;
-      const res = await this.analyzeRepository(params, {
-        maxCommits: perRepoMax,
-      });
-      results.push({ repository: `${owner}/${repoName}`, result: res });
+
+      try {
+        const res = await this.analyzeRepository(params, {
+          maxCommits: perRepoMax,
+          plan,
+        });
+
+        // Skip if no commits were analyzed (empty repo)
+        if (res.commitsAnalyzed === 0) {
+          this.logger.warn(`Skipping empty repository: ${owner}/${repoName}`);
+          continue;
+        }
+
+        results.push({ repository: `${owner}/${repoName}`, result: res });
+      } catch (error) {
+        this.logger.error(
+          `Failed to analyze repository ${owner}/${repoName}`,
+          error,
+        );
+        // Continue with next repository instead of failing entire analysis
+        continue;
+      }
 
       const analyzedCommits = results.reduce(
         (s, r) =>
@@ -108,8 +150,11 @@ export class QualityService {
 
   async analyzeRepository(
     params: QualityAnalysisRequest,
-    options?: { maxCommits?: number },
+    options?: { maxCommits?: number; plan?: 'FREE' | 'PREMIUM' },
   ): Promise<QualityAnalysisResponse> {
+    const plan = options?.plan || 'FREE';
+    const policy = PLAN_POLICIES[plan];
+
     const provider = await this.providerFactory.createProviderForUser(
       params.userId,
     );
@@ -117,7 +162,7 @@ export class QualityService {
     // fetch commits with pagination if maxCommits provided
     let commits: Array<CommitData> = [];
     if (options?.maxCommits && options.maxCommits > 0) {
-      const perPage = Math.min(100, options.maxCommits);
+      const perPage = Math.min(policy.commitsPerPage, options.maxCommits);
       let page = 1;
       while (commits.length < options.maxCommits) {
         const partial = await provider.listCommits(params.owner, params.repo, {
@@ -138,7 +183,7 @@ export class QualityService {
         since: params.since,
         until: params.until,
         branch: params.branch,
-        perPage: 100,
+        perPage: policy.commitsPerPage,
         page: 1,
       };
       commits = await provider.listCommits(
@@ -185,27 +230,6 @@ export class QualityService {
       `Analyzed ${metricsResults.length} commits for ${params.owner}/${params.repo}`,
     );
 
-    // Generate AI explanations for commits (optional, can be disabled via config)
-    if (metricsResults.length > 0 && metricsResults.length <= 20) {
-      try {
-        this.logger.debug('Generating AI explanations for quality scores...');
-        await Promise.all(
-          metricsResults.slice(0, 5).map(async (metrics) => {
-            const commit = commits.find((c) => c.sha === metrics.commitSha);
-            if (commit) {
-              await this.qualityExplanation.generateExplanation(
-                commit.sha,
-                commit.message,
-                metrics,
-              );
-            }
-          }),
-        );
-      } catch (error) {
-        this.logger.warn('Failed to generate AI explanations', error);
-      }
-    }
-
     const violations = this.antiGamingDetector.detectAntiPatterns(
       metricsResults,
       {
@@ -221,7 +245,6 @@ export class QualityService {
       params.owner,
       params.repo,
       metricsResults,
-      violations,
       commits,
     );
 
@@ -253,6 +276,234 @@ export class QualityService {
         improvementAreas: [],
       },
       analyzedAt: new Date(),
+    };
+  }
+
+  /**
+   * Get user's current quality metrics
+   */
+  async getUserMetrics(userId: string): Promise<QualityMetricsResponse | null> {
+    const temporal = await this.temporalAnalyzer.aggregateTemporalMetrics(
+      userId,
+      30,
+    );
+
+    const allMetrics = await this.prisma.$.commitQualityMetrics.findMany({
+      where: { userId },
+      orderBy: { analyzedAt: 'desc' },
+      take: 100,
+    });
+
+    if (!allMetrics || allMetrics.length === 0) {
+      return null;
+    }
+
+    const overallScore =
+      allMetrics.reduce((sum, m) => sum + (m.overallScore || 0), 0) /
+      allMetrics.length;
+    const disciplineScore =
+      allMetrics.reduce((sum, m) => sum + (m.disciplineScore || 0), 0) /
+      allMetrics.length;
+    const clarityScore =
+      allMetrics.reduce((sum, m) => sum + (m.clarityScore || 0), 0) /
+      allMetrics.length;
+    const impactScore =
+      allMetrics.reduce((sum, m) => sum + (m.impactScore || 0), 0) /
+      allMetrics.length;
+    const testingScore =
+      allMetrics.reduce((sum, m) => sum + (m.testingScore || 0), 0) /
+      allMetrics.length;
+    const consistencyScore =
+      allMetrics.reduce((sum, m) => sum + (m.consistencyScore || 0), 0) /
+      allMetrics.length;
+
+    return {
+      userId,
+      overallScore: Math.round(overallScore),
+      disciplineScore: Math.round(disciplineScore),
+      clarityScore: Math.round(clarityScore),
+      testingScore: Math.round(testingScore),
+      impactScore: Math.round(impactScore),
+      consistencyScore: Math.round(consistencyScore),
+      trend: temporal.trendDirection.toUpperCase() as
+        | 'IMPROVING'
+        | 'STABLE'
+        | 'DECLINING',
+      improvementVelocity: temporal.trendStrength,
+      lastAnalyzedAt: allMetrics[0].analyzedAt,
+      totalCommitsAnalyzed: allMetrics.length,
+    };
+  }
+
+  /**
+   * Get temporal quality metrics over time window
+   */
+  async getTemporalMetrics(
+    userId: string,
+    window: '30' | '60' | '90' = '90',
+  ): Promise<TemporalMetricsResponse> {
+    const windowDays = parseInt(window) as 30 | 60 | 90;
+    const temporal = await this.temporalAnalyzer.aggregateTemporalMetrics(
+      userId,
+      windowDays,
+    );
+
+    const metrics = await this.prisma.$.commitQualityMetrics.findMany({
+      where: {
+        userId,
+        analyzedAt: {
+          gte: new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000),
+        },
+      },
+      orderBy: { analyzedAt: 'asc' },
+    });
+
+    const dataPointsMap = new Map<string, { score: number; count: number }>();
+
+    metrics.forEach((metric) => {
+      const date = metric.analyzedAt.toISOString().split('T')[0];
+      const existing = dataPointsMap.get(date) || { score: 0, count: 0 };
+      dataPointsMap.set(date, {
+        score: existing.score + (metric.overallScore || 0),
+        count: existing.count + 1,
+      });
+    });
+
+    const dataPoints = Array.from(dataPointsMap.entries()).map(
+      ([date, data]) => ({
+        date,
+        score: Math.round(data.score / data.count),
+        commitsCount: data.count,
+      }),
+    );
+
+    const averageScore =
+      dataPoints.reduce((sum, p) => sum + p.score, 0) / dataPoints.length || 0;
+
+    return {
+      userId,
+      window,
+      dataPoints,
+      averageScore: Math.round(averageScore),
+      trend: temporal.trendDirection.toUpperCase() as
+        | 'IMPROVING'
+        | 'STABLE'
+        | 'DECLINING',
+      improvementRate: temporal.trendStrength,
+    };
+  }
+
+  /**
+   * Get quality explanation for an achievement
+   */
+  async getAchievementExplanation(
+    userId: string,
+    achievementId: string,
+  ): Promise<AchievementQualityResponse | null> {
+    const achievement = await this.prisma.$.achievement.findFirst({
+      where: {
+        id: achievementId,
+        userId,
+      },
+    });
+
+    if (!achievement) {
+      return null;
+    }
+
+    const providerData = achievement.providerData as {
+      commitShas?: string[];
+    } | null;
+    const commitShas = providerData?.commitShas || [];
+
+    const evidence = await this.prisma.$.commitQualityMetrics.findMany({
+      where: {
+        userId,
+        commitSha: {
+          in: commitShas,
+        },
+      },
+      take: 10,
+    });
+
+    const avgScore =
+      evidence.reduce((sum, e) => sum + (e.overallScore || 0), 0) /
+        evidence.length || 0;
+
+    return {
+      achievementId,
+      title: achievement.title,
+      qualityScore: Math.round(avgScore * 100),
+      explanation: achievement.description || 'Quality analysis in progress...',
+      strengths: ['Clear implementation', 'Good test coverage'],
+      improvements: ['Consider adding documentation'],
+      metrics: {
+        discipline:
+          Math.round(
+            (evidence.reduce((sum, e) => sum + (e.disciplineScore || 0), 0) /
+              evidence.length) *
+              100,
+          ) || 0,
+        clarity:
+          Math.round(
+            (evidence.reduce((sum, e) => sum + (e.clarityScore || 0), 0) /
+              evidence.length) *
+              100,
+          ) || 0,
+        testing: 75,
+        impact:
+          Math.round(
+            (evidence.reduce((sum, e) => sum + (e.impactScore || 0), 0) /
+              evidence.length) *
+              100,
+          ) || 0,
+      },
+      evidence: evidence.map((e) => ({
+        commitSha: e.commitSha,
+        message: e.messageScore?.toString() || 'Commit message',
+        score: Math.round((e.overallScore || 0) * 100),
+        url: `https://github.com/${userId}/${e.repositoryName}/commit/${e.commitSha}`,
+      })),
+    };
+  }
+
+  /**
+   * Get detailed commit quality metrics
+   */
+  async getCommitMetrics(
+    userId: string,
+    commitSha: string,
+  ): Promise<CommitMetricsResponse | null> {
+    const metrics = await this.prisma.$.commitQualityMetrics.findFirst({
+      where: {
+        userId,
+        commitSha,
+      },
+    });
+
+    if (!metrics) {
+      return null;
+    }
+
+    return {
+      commitSha: metrics.commitSha,
+      message: metrics.messageScore?.toString() || '',
+      author: userId,
+      date: metrics.analyzedAt,
+      overallScore: Math.round((metrics.overallScore || 0) * 100),
+      disciplineScore: Math.round((metrics.disciplineScore || 0) * 100),
+      clarityScore: Math.round((metrics.clarityScore || 0) * 100),
+      impactScore: Math.round((metrics.impactScore || 0) * 100),
+      testingScore: Math.round((metrics.testingScore || 0) * 100),
+      consistencyScore: Math.round((metrics.consistencyScore || 0) * 100),
+      isDisciplined: metrics.isDisciplined || false,
+      isClear: metrics.isClear || false,
+      hasAntiPatterns: metrics.hasAntiPatterns || false,
+      suspicionScore: Math.round((metrics.suspicionScore || 0) * 100),
+      flagReasons: (metrics.flagReasons as string[]) || [],
+      filesChanged: metrics.filesChanged || 0,
+      linesAdded: metrics.linesAdded || 0,
+      linesDeleted: metrics.linesDeleted || 0,
     };
   }
 }

@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@verified-prof/prisma';
-import type { CommitData, ViolationIncident } from '@verified-prof/shared';
+import type { CommitData } from '@verified-prof/shared';
 import type { QualityMetricsResult } from './commit-scorer.service';
 
 export interface PersistenceResult {
   jobId: string;
   snapshotId: string;
   commitMetricsCount: number;
-  violationsCount: number;
   temporalMetricsId: string;
 }
 
@@ -16,7 +15,7 @@ export class PersistenceService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Persists analysis job, snapshot, commit metrics, and violations to database.
+   * Persists analysis job, snapshot, and commit metrics to database.
    * Handles all database operations for quality analysis results.
    */
   async persistAnalysisResults(
@@ -24,7 +23,6 @@ export class PersistenceService {
     owner: string,
     repo: string,
     metricsResults: QualityMetricsResult[],
-    violations: ViolationIncident[],
     commits: CommitData[],
   ): Promise<PersistenceResult> {
     const job = await this.createAnalysisJob(userId);
@@ -50,26 +48,18 @@ export class PersistenceService {
         repo,
         m,
       );
-
-      await this.createViolations(
-        userId,
-        commitSignal.id,
-        violations.filter((v) => v.commitSha === m.commitSha),
-      );
     }
 
     const temporalMetrics = await this.createTemporalMetrics(
       userId,
       snapshot.id,
       metricsResults,
-      violations,
     );
 
     return {
       jobId: job.id,
       snapshotId: snapshot.id,
       commitMetricsCount: metricsResults.length,
-      violationsCount: violations.length,
       temporalMetricsId: temporalMetrics.id,
     };
   }
@@ -177,37 +167,17 @@ export class PersistenceService {
   }
 
   /**
-   * Creates violation records.
-   */
-  private async createViolations(
-    userId: string,
-    commitSignalId: string,
-    violations: ViolationIncident[],
-  ) {
-    for (const v of violations) {
-      await this.prisma.$.qualityViolation.create({
-        data: {
-          userId,
-          commitSignalId,
-          violationType: v.type,
-          severity: v.severity,
-          description: v.description,
-          evidence: v.evidence as unknown as object,
-          penaltyApplied: v.penaltyApplied,
-        },
-      });
-    }
-  }
-
-  /**
    * Creates temporal metrics record.
    */
   private async createTemporalMetrics(
     userId: string,
     snapshotId: string,
     metricsResults: QualityMetricsResult[],
-    violations: ViolationIncident[],
   ) {
+    const flaggedCommits = metricsResults.filter(
+      (m) => m.hasAntiPatterns || (m.suspicionScore || 0) > 50,
+    ).length;
+
     return await this.prisma.$.temporalMetrics.create({
       data: {
         userId,
@@ -230,8 +200,11 @@ export class PersistenceService {
         impactfulCommits: metricsResults.filter((m) => m.isImpactful).length,
         trendDirection: 'stable',
         trendStrength: 0,
-        flaggedCommits: violations.length,
-        suspicionRate: 0,
+        flaggedCommits,
+        suspicionRate:
+          metricsResults.length > 0
+            ? flaggedCommits / metricsResults.length
+            : 0,
         windowStart: new Date(),
         windowEnd: new Date(),
       },

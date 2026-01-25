@@ -3,6 +3,7 @@ import { ProvidersModule } from '../providers/providers.module';
 import { AiModule } from '../ai/ai.module';
 import { QualityService } from './quality.service';
 import { QualityController } from './quality.controller';
+import { AchievementsController } from './achievements.controller';
 import { DisciplineCalculatorService } from './services/discipline-calculator.service';
 import { ClarityAnalyzerService } from './services/clarity-analyzer.service';
 import { CommitScorerService } from './services/commit-scorer.service';
@@ -16,7 +17,7 @@ import { JobsModule } from '../jobs/jobs.module';
 
 @Module({
   imports: [ProvidersModule, AiModule, forwardRef(() => JobsModule)],
-  controllers: [QualityController],
+  controllers: [QualityController, AchievementsController],
   providers: [
     QualityService,
     DisciplineCalculatorService,
