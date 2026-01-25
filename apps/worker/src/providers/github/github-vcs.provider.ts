@@ -95,6 +95,13 @@ export class GitHubVcsProvider implements IVcsProvider {
         this.mapGitHubCommitToCommitData(commit),
       );
     } catch (error) {
+      // Handle empty repository (409 error)
+      if (error.status === 409 && error.message?.includes('empty')) {
+        this.logger.warn(
+          `Repository ${owner}/${repo} is empty, skipping commits`,
+        );
+        return [];
+      }
       this.logger.error('Failed to list commits', error);
       throw error;
     }
@@ -164,6 +171,13 @@ export class GitHubVcsProvider implements IVcsProvider {
         this.mapGitHubCommitToCommitData(commit),
       );
     } catch (error) {
+      // Handle empty repository or PR without commits
+      if (error.status === 409 || error.status === 404) {
+        this.logger.warn(
+          `PR ${owner}/${repo}#${prNumber} has no commits or repo is empty`,
+        );
+        return [];
+      }
       this.logger.error(
         `Failed to list commits in PR ${owner}/${repo}#${prNumber}`,
         error,
