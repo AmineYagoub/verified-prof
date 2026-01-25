@@ -1,7 +1,7 @@
 // Single source of truth for all Prisma types and enums
 // Both API and UI import from here
 
-export { InputJsonValue } from '../../../prisma/src/generated/runtime/client';
+export type { InputJsonValue } from '../../../prisma/src/generated/runtime/client';
 
 export type {
   // Models
@@ -18,9 +18,7 @@ export type {
   SkillEvidence,
   SkillAssessment,
   VerificationClaim,
-  AnalysisCache,
   ProviderConnection,
-  WebhookEvent,
   UserSettings,
   // Enums
   ImpactLevel,
