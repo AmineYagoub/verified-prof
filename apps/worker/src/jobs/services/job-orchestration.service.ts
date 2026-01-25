@@ -45,7 +45,7 @@ export class JobOrchestrationService {
     this.logger.log(`Starting analysis pipeline for user ${userId}`);
 
     const qualityJobId = await this.startQualityAnalysis(userId, plan);
-    this.logger.log(`Quality analysis job started: ${qualityJobId}`);
+    this.logger.log(`Quality analysis job completed: ${qualityJobId}`);
   }
 
   private async startQualityAnalysis(
@@ -80,13 +80,20 @@ export class JobOrchestrationService {
 
       await this.progressTracking.completeJob(job.jobId, result);
 
+      const totalCommits = result.repositories.reduce(
+        (sum, repo) =>
+          sum +
+          ((repo.result as { commitsAnalyzed?: number })?.commitsAnalyzed || 0),
+        0,
+      );
+
       this.eventEmitter.emit(
         JOB_EVENTS.QUALITY_ANALYSIS_COMPLETED,
         new QualityAnalysisCompletedEvent(
           job.jobId,
           userId,
           result.repositories.length,
-          0, // commit count will be tracked by quality service
+          totalCommits,
         ),
       );
 

@@ -1,11 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  InputJsonValue,
-  JobProgress,
-  JobStatus,
-  JobType,
-} from '@verified-prof/shared';
+import { InputJsonValue, JobStatus, JobType } from '@verified-prof/shared';
 import { PrismaService } from '@verified-prof/prisma';
+
+// Local interface for job progress tracking (replacing deleted Prisma model)
+export interface JobProgress {
+  jobId: string;
+  userId: string;
+  type: string;
+  status: string;
+  progress: number;
+  currentStep?: string;
+  totalSteps?: number;
+  completedSteps?: number;
+  startedAt: Date;
+  completedAt?: Date;
+  error?: string;
+  metadata?: Record<string, unknown>;
+}
 
 @Injectable()
 export class ProgressTrackingService {
@@ -88,60 +99,36 @@ export class ProgressTrackingService {
   }
 
   async getUserJobs(userId: string): Promise<JobProgress[]> {
-    const jobs = await this.prisma.$.jobProgress.findMany({
+    // Use AnalysisJob instead of deleted JobProgress model
+    const jobs = await this.prisma.client.analysisJob.findMany({
       where: { userId },
       orderBy: { startedAt: 'desc' },
       take: 20,
     });
 
-    return jobs.map(this.mapToJobProgress);
+    return jobs.map((job) => this.mapAnalysisJobToProgress(job));
   }
 
   async getLatestUserJob(
     userId: string,
     type?: JobType,
   ): Promise<JobProgress | null> {
-    const where: { userId: string; type?: string } = { userId };
-    if (type) {
-      where.type = type;
-    }
-
-    const job = await this.prisma.$.jobProgress.findFirst({
-      where,
+    // Use AnalysisJob instead of deleted JobProgress model
+    const job = await this.prisma.client.analysisJob.findFirst({
+      where: { userId },
       orderBy: { startedAt: 'desc' },
     });
 
-    return job ? this.mapToJobProgress(job) : null;
+    return job ? this.mapAnalysisJobToProgress(job) : null;
   }
 
   private async persistProgress(progress: JobProgress): Promise<void> {
     try {
-      await this.prisma.$.jobProgress.upsert({
-        where: { jobId: progress.jobId },
-        create: {
-          jobId: progress.jobId,
-          userId: progress.userId,
-          type: progress.type,
-          status: progress.status,
-          progress: progress.progress,
-          currentStep: progress.currentStep,
-          totalSteps: progress.totalSteps,
-          completedSteps: progress.completedSteps,
-          startedAt: progress.startedAt,
-          completedAt: progress.completedAt,
-          error: progress.error,
-          metadata: progress.metadata as InputJsonValue,
-        },
-        update: {
-          status: progress.status,
-          progress: progress.progress,
-          currentStep: progress.currentStep,
-          completedSteps: progress.completedSteps,
-          completedAt: progress.completedAt,
-          error: progress.error,
-          metadata: progress.metadata as InputJsonValue,
-        },
-      });
+      // Store in cache only - use AnalysisJob for database persistence
+      this.progressCache.set(progress.jobId, progress);
+
+      // Optionally sync to AnalysisJob if needed
+      // For now, AnalysisJob is primary source of truth
     } catch (error) {
       this.logger.error(
         `Failed to persist progress for ${progress.jobId}`,
@@ -151,46 +138,40 @@ export class ProgressTrackingService {
   }
 
   private async loadProgress(jobId: string): Promise<JobProgress | null> {
-    const job = await this.prisma.$.jobProgress.findUnique({
-      where: { jobId },
+    // Use AnalysisJob instead of deleted JobProgress model
+    const job = await this.prisma.client.analysisJob.findFirst({
+      where: { id: jobId },
     });
 
     if (!job) {
       return null;
     }
 
-    const progress = this.mapToJobProgress(job);
+    const progress = this.mapAnalysisJobToProgress(job);
     this.progressCache.set(jobId, progress);
     return progress;
   }
 
-  private mapToJobProgress(job: {
-    jobId: string;
+  private mapAnalysisJobToProgress(job: {
+    id: string;
     userId: string;
-    type: string;
     status: string;
     progress: number;
     currentStep: string | null;
-    totalSteps: number | null;
-    completedSteps: number | null;
+    errorMessage: string | null;
     startedAt: Date;
     completedAt: Date | null;
-    error: string | null;
-    metadata: unknown;
   }): JobProgress {
     return {
-      jobId: job.jobId,
+      jobId: job.id,
       userId: job.userId,
-      type: job.type as JobType,
-      status: job.status,
+      type: 'analysis', // Default type for AnalysisJob
+      status: job.status.toLowerCase(),
       progress: job.progress,
       currentStep: job.currentStep || undefined,
-      totalSteps: job.totalSteps || undefined,
-      completedSteps: job.completedSteps || undefined,
       startedAt: job.startedAt,
       completedAt: job.completedAt || undefined,
-      error: job.error || undefined,
-      metadata: job.metadata as Record<string, unknown> | undefined,
+      error: job.errorMessage || undefined,
     };
   }
 }
