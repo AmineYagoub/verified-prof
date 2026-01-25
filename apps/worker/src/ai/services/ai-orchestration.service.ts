@@ -20,6 +20,49 @@ import { buildSkillValidationPrompt } from '../prompts/skill-prompts';
 import { buildSimplifiedQualityPrompt } from '../prompts/quality-prompts';
 import type { PullRequestData } from '@verified-prof/shared';
 
+const ACHIEVEMENT_EXTRACTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    hasAchievement: { type: 'boolean' },
+    title: { type: ['string', 'null'] },
+    description: { type: ['string', 'null'] },
+    impact: { type: ['string', 'null'] },
+    category: { type: ['string', 'null'] },
+    skills: { type: ['array', 'null'], items: { type: 'string' } },
+    reasoning: { type: ['string', 'null'] },
+  },
+  required: ['hasAchievement'],
+};
+
+const QUALITY_EXPLANATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    strengths: { type: 'array', items: { type: 'string' } },
+    improvements: { type: 'array', items: { type: 'string' } },
+    tone: { type: 'string' },
+  },
+  required: ['summary', 'strengths', 'improvements', 'tone'],
+};
+
+const BADGE_DESCRIPTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    description: { type: 'string' },
+  },
+  required: ['description'],
+};
+
+const SKILL_VALIDATION_SCHEMA = {
+  type: 'object',
+  properties: {
+    valid: { type: 'boolean' },
+    suggestedLevel: { type: 'string' },
+    feedback: { type: 'string' },
+  },
+  required: ['valid', 'suggestedLevel', 'feedback'],
+};
+
 /**
  * AI Orchestration Service
  * Central event-driven handler for all AI requests
@@ -75,7 +118,7 @@ export class AiOrchestrationService {
         category?: string;
         skills?: string[];
         reasoning?: string;
-      }>(prompt, {
+      }>(prompt, ACHIEVEMENT_EXTRACTION_SCHEMA, {
         temperature: 0.3,
         maxOutputTokens: 512,
       });
@@ -158,7 +201,7 @@ export class AiOrchestrationService {
         strengths: string[];
         improvements: string[];
         tone: string;
-      }>(prompt, {
+      }>(prompt, QUALITY_EXPLANATION_SCHEMA, {
         temperature: 0.5,
         maxOutputTokens: 384,
       });
@@ -218,7 +261,7 @@ export class AiOrchestrationService {
 
       const response = await this.gemini.generateJSON<{
         description: string;
-      }>(prompt, {
+      }>(prompt, BADGE_DESCRIPTION_SCHEMA, {
         temperature: 0.7,
         maxOutputTokens: 256,
       });
@@ -281,7 +324,7 @@ export class AiOrchestrationService {
         valid: boolean;
         suggestedLevel: string;
         feedback: string;
-      }>(prompt, {
+      }>(prompt, SKILL_VALIDATION_SCHEMA, {
         temperature: 0.3,
         maxOutputTokens: 256,
       });

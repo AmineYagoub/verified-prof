@@ -33,6 +33,101 @@ export interface BatchAchievementResult {
   }>;
 }
 
+const ACHIEVEMENT_EXTRACTION_SCHEMA = {
+  type: 'object',
+  properties: {
+    hasAchievement: {
+      type: 'boolean',
+      description: 'Whether the PR contains a significant achievement',
+    },
+    title: {
+      type: ['string', 'null'],
+      description: 'Short title for the achievement',
+    },
+    description: {
+      type: ['string', 'null'],
+      description: 'Detailed description of what was accomplished',
+    },
+    impact: {
+      type: ['string', 'null'],
+      enum: ['high', 'medium', 'low', null],
+      description: 'Impact level of the achievement',
+    },
+    category: {
+      type: ['string', 'null'],
+      enum: [
+        'feature',
+        'performance',
+        'bugfix',
+        'refactor',
+        'security',
+        'infrastructure',
+        null,
+      ],
+      description: 'Category of the achievement',
+    },
+    skills: {
+      type: ['array', 'null'],
+      items: { type: 'string' },
+      description: 'Skills demonstrated in this achievement',
+    },
+    reasoning: {
+      type: 'string',
+      description: 'Explanation of the decision',
+    },
+  },
+  required: ['hasAchievement', 'reasoning'],
+};
+
+const BATCH_ACHIEVEMENT_SCHEMA = {
+  type: 'object',
+  properties: {
+    achievements: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          prNumber: {
+            type: 'integer',
+            description: 'Pull request number',
+          },
+          title: {
+            type: 'string',
+            description: 'Achievement title',
+          },
+          description: {
+            type: 'string',
+            description: 'Achievement description',
+          },
+          impact: {
+            type: 'string',
+            enum: ['high', 'medium', 'low'],
+            description: 'Impact level',
+          },
+          category: {
+            type: 'string',
+            description: 'Achievement category',
+          },
+          skills: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Skills demonstrated',
+          },
+        },
+        required: [
+          'prNumber',
+          'title',
+          'description',
+          'impact',
+          'category',
+          'skills',
+        ],
+      },
+    },
+  },
+  required: ['achievements'],
+};
+
 @Injectable()
 export class AchievementExtractorService {
   private readonly logger = new Logger(AchievementExtractorService.name);
@@ -52,6 +147,7 @@ export class AchievementExtractorService {
 
       const result = await this.gemini.generateJSON<AchievementExtraction>(
         prompt,
+        ACHIEVEMENT_EXTRACTION_SCHEMA,
         {
           temperature: 0.3,
           maxOutputTokens: 500,
@@ -68,10 +164,7 @@ export class AchievementExtractorService {
         `Failed to extract achievement from PR #${pr.number}`,
         error,
       );
-      return {
-        hasAchievement: false,
-        reasoning: 'AI extraction failed',
-      };
+      throw error;
     }
   }
 
@@ -91,6 +184,7 @@ export class AchievementExtractorService {
 
       const result = await this.gemini.generateJSON<BatchAchievementResult>(
         prompt,
+        BATCH_ACHIEVEMENT_SCHEMA,
         {
           temperature: 0.3,
           maxOutputTokens: 2000,
@@ -104,57 +198,7 @@ export class AchievementExtractorService {
       return result;
     } catch (error) {
       this.logger.error('Failed to batch extract achievements', error);
-      return { achievements: [] };
+      throw error;
     }
-  }
-
-  /**
-   * Validates if an achievement meets quality standards.
-   * Filters out trivial or poorly described achievements.
-   */
-  validateAchievement(achievement: AchievementExtraction): boolean {
-    if (!achievement.hasAchievement) return false;
-    if (!achievement.title || achievement.title.length < 10) return false;
-    if (!achievement.description || achievement.description.length < 20)
-      return false;
-    if (!achievement.skills || achievement.skills.length === 0) return false;
-
-    const trivialKeywords = [
-      'typo',
-      'formatting',
-      'whitespace',
-      'comment',
-      'renamed',
-      'moved file',
-    ];
-    const titleLower = achievement.title.toLowerCase();
-    if (trivialKeywords.some((kw) => titleLower.includes(kw))) {
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Enhances achievement with additional context.
-   * Adds proof URL, timestamps, repository info.
-   */
-  enrichAchievement(
-    extraction: AchievementExtraction,
-    pr: PullRequestData,
-    repositoryFullName: string,
-  ): AchievementExtraction & {
-    proofUrl: string;
-    achievedAt: Date;
-    repositoryName: string;
-    prNumber: number;
-  } {
-    return {
-      ...extraction,
-      proofUrl: pr.htmlUrl,
-      achievedAt: pr.mergedAt || pr.closedAt || pr.createdAt,
-      repositoryName: repositoryFullName,
-      prNumber: pr.number,
-    };
   }
 }

@@ -29,11 +29,6 @@ import { QualityExplanationService } from './services/quality-explanation.servic
     AchievementExtractorService,
     QualityExplanationService,
   ],
-  exports: [
-    GeminiService,
-    AiOrchestrationService,
-    AchievementExtractorService,
-    QualityExplanationService,
-  ],
+  exports: [AiOrchestrationService],
 })
 export class AiModule {}
