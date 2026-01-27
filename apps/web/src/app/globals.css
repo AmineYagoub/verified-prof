@@ -1,11 +1,37 @@
-@import "tailwindcss";
-@plugin "daisyui" {
-  themes: light, dark;
-}
+@import 'tailwindcss';
+@plugin "daisyui";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@plugin "daisyui/theme" {
+  name: 'forest';
+  default: true;
+  prefersdark: true;
+  color-scheme: 'dark';
+  --color-base-100: oklch(21% 0.006 56.043);
+  --color-base-300: oklch(27% 0.033 256.848);
+  --color-base-content: oklch(96% 0.003 264.542);
+  --color-primary: oklch(87% 0.006 286.286);
+  --color-primary-content: oklch(28% 0.066 53.813);
+  --color-secondary: oklch(67% 0.182 276.935);
+  --color-secondary-content: oklch(28% 0.109 3.907);
+  --color-accent: oklch(84% 0.238 128.85);
+  --color-accent-content: oklch(27% 0.072 132.109);
+  --color-neutral: oklch(27% 0.033 256.848);
+  --color-neutral-content: oklch(98% 0.002 247.839);
+  --color-info: oklch(54% 0.245 262.881);
+  --color-info-content: oklch(97% 0.014 254.604);
+  --color-success: oklch(62% 0.194 149.214);
+  --color-success-content: oklch(98% 0.014 180.72);
+  --color-warning: oklch(64% 0.222 41.116);
+  --color-warning-content: oklch(98% 0.016 73.684);
+  --color-error: oklch(57% 0.245 27.325);
+  --color-error-content: oklch(97% 0.013 17.38);
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --depth: 1;
+  --noise: 1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -47,7 +73,11 @@ body {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 20%, var(--background) 80%);
+  background: radial-gradient(
+    ellipse at center,
+    transparent 20%,
+    var(--background) 80%
+  );
 }
 
 /* Noisy texture for cards */
@@ -159,4 +189,39 @@ body {
       transparent 100%
     );
   }
+}
+
+/* Animated Lines */
+@keyframes line-animation {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-line-1 {
+  animation: line-animation 8s ease-in-out infinite;
+}
+
+.animate-line-2 {
+  animation: line-animation 10s ease-in-out infinite 1s;
+}
+
+.animate-line-3 {
+  animation: line-animation 12s ease-in-out infinite 2s;
+}
+
+.animate-line-4 {
+  animation: line-animation 9s ease-in-out infinite 1.5s;
+}
+
+.animate-line-5 {
+  animation: line-animation 11s ease-in-out infinite 0.5s;
 }
