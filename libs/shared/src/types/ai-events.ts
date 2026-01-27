@@ -20,8 +20,27 @@ export const AI_EVENTS = {
   SKILL_VALIDATION_REQUESTED: 'ai.skill.validation.requested',
   SKILL_VALIDATION_COMPLETED: 'ai.skill.validation.completed',
 
+  // Profile Summary
+  PROFILE_SUMMARY_REQUESTED: 'ai.profile.summary.requested',
+  PROFILE_SUMMARY_COMPLETED: 'ai.profile.summary.completed',
+
   // Error Handling
   REQUEST_FAILED: 'ai.request.failed',
 } as const;
 
 export type AIEventName = (typeof AI_EVENTS)[keyof typeof AI_EVENTS];
+
+export class ProfileSummaryRequestedEvent {
+  constructor(
+    public readonly userId: string,
+    public readonly type: 'bio' | 'skills' | 'quality',
+  ) {}
+}
+
+export class ProfileSummaryCompletedEvent {
+  constructor(
+    public readonly userId: string,
+    public readonly type: 'bio' | 'skills' | 'quality',
+    public readonly summary: string,
+  ) {}
+}
