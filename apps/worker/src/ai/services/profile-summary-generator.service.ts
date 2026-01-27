@@ -8,6 +8,11 @@ import {
 } from '@verified-prof/shared';
 import { GeminiService } from './gemini.service';
 import { AiDataSanitizerService } from './ai-data-sanitizer.service';
+import {
+  generateBioPrompt,
+  generateSkillsSummaryPrompt,
+  generateQualityMetricsSummaryPrompt,
+} from '../prompts';
 
 @Injectable()
 export class ProfileSummaryGeneratorService {
@@ -79,8 +84,8 @@ export class ProfileSummaryGeneratorService {
       }),
     ]);
 
-    if (!profile || !user) {
-      throw new Error('Profile not found');
+    if (!user || !profile) {
+      throw new Error('User not found');
     }
 
     const skills = await this.prisma.$.skill.findMany({
@@ -132,27 +137,19 @@ export class ProfileSummaryGeneratorService {
       (repo) => !repo.includes('private'),
     ).length;
 
-    const prompt = `Generate a professional developer bio (maximum 20 words) for a GitHub user with these details:
-
-Core Skills:
-- Top Languages: ${topLanguages || 'Full-stack developer'}
-- Frameworks: ${topFrameworks || 'Various'}
-- Total Skills: ${profile.totalSkills}
-
-Activity & Quality:
-- Account Age: ${accountYears} years
-- Analyzed Commits: ${totalCommits}
-- Unique Languages: ${languagesUsed.slice(0, 5).join(', ')}
-- Public Repositories: ${publicRepoCount}
-- Avg Quality Score: ${avgQuality}/100
-- Badge Level: ${profile.badgeLevel || 'Developing'}
-
-Top Achievements: ${sanitizedAchievements}
-Total Achievements: ${profile.totalAchievements}
-
-STRICT CONSTRAINT: Maximum 20 words total. Be extremely concise.
-Focus on strongest expertise and measurable impact.
-Return ONLY the bio text, no other content.`;
+    const prompt = generateBioPrompt({
+      topLanguages,
+      topFrameworks,
+      totalSkills: profile.totalSkills,
+      accountYears,
+      totalCommits,
+      languagesUsed,
+      publicRepoCount,
+      avgQuality,
+      badgeLevel: profile.badgeLevel,
+      sanitizedAchievements,
+      totalAchievements: profile.totalAchievements,
+    });
 
     const response = await this.gemini.generateJSON<{ text: string }>(prompt, {
       type: 'object',
@@ -216,23 +213,7 @@ Return ONLY the bio text, no other content.`;
       };
     });
 
-    const prompt = `Generate a concise programming skills summary (maximum 20 words) for:
-
-${enrichedSkills
-  .map(
-    (s, i) => `${i + 1}. ${s.name} (${s.level})
-   - Skill level: ${s.level}
-   - Evidence strength: ${s.evidenceCount} instances
-   - Recent activity: ${s.recentUsage} commits in last 100
-   - Active usage span: ${s.usageSpanDays} days in analyzed commits
-   - Last used: ${s.daysAgo} days ago
-   - Detection confidence: ${((s.confidence || 0) * 100).toFixed(0)}%`,
-  )
-  .join('\n\n')}
-
-STRICT CONSTRAINT: Maximum 20 words total.
-Highlight strongest languages and depth of expertise.
-Return ONLY the summary text.`;
+    const prompt = generateSkillsSummaryPrompt(enrichedSkills);
 
     const response = await this.gemini.generateJSON<{ text: string }>(prompt, {
       type: 'object',
@@ -246,11 +227,9 @@ Return ONLY the summary text.`;
     const profile = await this.prisma.$.userCurrentProfile.findUnique({
       where: { userId },
     });
-
     if (!profile) {
-      return 'Quality metrics analysis pending. Complete your first analysis.';
+      throw new Error('User profile not found');
     }
-
     const commitSignals = await this.prisma.$.commitSignal.findMany({
       where: { snapshot: { userId } },
       include: {
@@ -258,7 +237,6 @@ Return ONLY the summary text.`;
       },
       take: 100,
     });
-
     const qualityMetrics = commitSignals
       .map((c) => c.qualityMetrics)
       .filter((m): m is NonNullable<typeof m> => m !== null);
@@ -318,28 +296,23 @@ Return ONLY the summary text.`;
       qualityMetrics.length
     ).toFixed(1);
 
-    const prompt = `Generate a hiring-focused code quality summary (maximum 20 words) based on:
-
-Quality Scores (0-100):
-- Overall Quality: ${avgOverall}
-- Discipline: ${avgDiscipline} (${disciplinedPct}% disciplined commits)
-- Clarity: ${avgClarity} (${clearPct}% clear commits)
-- Impact: ${avgImpact} (${impactfulPct}% impactful commits)
-- Consistency: ${avgConsistency} (${consistentPct}% consistent commits)
-
-Integrity:
-- Gaming Detection: ${antiPatternPct}% flagged
-- Suspicion Score: ${avgSuspicion}/100
-
-Context:
-- Badge Level: ${profile.badgeLevel || 'Developing'}
-- Analyzed Commits: ${qualityMetrics.length}
-- Achievements: ${profile.totalAchievements}
-- Skills Mastered: ${profile.totalSkills}
-
-STRICT CONSTRAINT: Maximum 20 words total. Be extremely concise.
-Translate technical scores into hiring insights (reliability, code quality, professionalism).
-Return ONLY the summary text.`;
+    const prompt = generateQualityMetricsSummaryPrompt({
+      avgOverall,
+      avgDiscipline,
+      disciplinedPct,
+      avgClarity,
+      clearPct,
+      avgImpact,
+      impactfulPct,
+      avgConsistency,
+      consistentPct,
+      antiPatternPct,
+      avgSuspicion,
+      badgeLevel: profile.badgeLevel,
+      qualityMetricsLength: qualityMetrics.length,
+      totalAchievements: profile.totalAchievements,
+      totalSkills: profile.totalSkills,
+    });
 
     const response = await this.gemini.generateJSON<{ text: string }>(prompt, {
       type: 'object',

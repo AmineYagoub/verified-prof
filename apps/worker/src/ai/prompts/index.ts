@@ -7,3 +7,6 @@ export * from './badge-prompts';
 export * from './profile-prompts';
 export * from './quality-prompts';
 export * from './skill-prompts';
+export * from './bio-prompt';
+export * from './skills-summary-prompt';
+export * from './quality-metrics-summary-prompt';
