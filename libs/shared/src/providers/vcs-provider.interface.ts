@@ -60,6 +60,18 @@ export interface ChangedFile {
 }
 
 /**
+ * Represents a tree item from repository tree
+ */
+export interface TreeItem {
+  path: string;
+  type: 'blob' | 'tree' | 'commit';
+  sha: string;
+  size?: number;
+  mode?: string;
+  url?: string;
+}
+
+/**
  * Represents a repository from any VCS provider
  */
 export interface RepositoryData {
@@ -162,10 +174,20 @@ export interface IVcsProvider {
   getProviderType(): VcsProviderType;
 
   /**
+   * Get the underlying client instance for advanced operations
+   */
+  getOctokit?(): unknown;
+
+  /**
    * Authenticate with the provider
    * Implementation varies by provider
    */
   authenticate(token: string): Promise<void>;
+
+  /**
+   * Get the authenticated user's username
+   */
+  getAuthenticatedUsername(): Promise<string>;
 
   /**
    * Get a single commit
@@ -182,12 +204,12 @@ export interface IVcsProvider {
   ): Promise<CommitData[]>;
 
   /**
-   * List all repositories for a user
+   * List all repositories for authenticated user
    */
-  getUserRepositories(
-    username: string,
-    options?: { perPage?: number; page?: number },
-  ): Promise<RepositoryData[]>;
+  getUserRepositories(options?: {
+    perPage?: number;
+    page?: number;
+  }): Promise<RepositoryData[]>;
 
   /**
    * List pull requests
@@ -220,6 +242,25 @@ export interface IVcsProvider {
   ): Promise<Record<string, number>>;
 
   /**
+   * Get repository file tree
+   */
+  getRepositoryTree(
+    owner: string,
+    repo: string,
+    recursive?: boolean,
+  ): Promise<TreeItem[]>;
+
+  /**
+   * Get commits by a specific user/author
+   */
+  getUserCommits(
+    owner: string,
+    repo: string,
+    author: string,
+    perPage?: number,
+  ): Promise<CommitData[]>;
+
+  /**
    * Rate limit status
    */
   getRateLimit(): Promise<{
@@ -239,4 +280,10 @@ export interface IVcsProviderFactory {
   createGitHubProvider(token: string): Promise<IVcsProvider>;
   createGitLabProvider(token: string): Promise<IVcsProvider>;
   createBitbucketProvider(token: string): Promise<IVcsProvider>;
+
+  // Clears cached provider instances and cached tokens for a given user
+  clearProviderCacheForUser(
+    userId: string,
+    type?: VcsProviderType | string,
+  ): Promise<void>;
 }

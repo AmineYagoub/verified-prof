@@ -26,9 +26,9 @@ export const PLAN_POLICIES: Record<
 > = {
   FREE: {
     plan: 'FREE',
-    windowDays: 30,
+    windowDays: 90,
     maxCommits: 1000,
-    maxRepositories: 5,
+    maxRepositories: 10,
     commitsPerPage: 100,
     repositoriesPerPage: 10,
     allowSampling: true,

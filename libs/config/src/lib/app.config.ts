@@ -19,7 +19,6 @@ export const getEnvSafely = (envKey: string) => {
 
 export const appConfig = registerAs(APP_CONFIG_REGISTER_KEY, () => ({
   app: {
-    appBaseUrl: getEnvSafely('APP_BASE_URL'),
     origin: getEnvSafely('ALLOWED_ORIGINS')?.split(','),
     vcsProvider: process.env['DEFAULT_VCS_PROVIDER'],
   },
@@ -28,13 +27,20 @@ export const appConfig = registerAs(APP_CONFIG_REGISTER_KEY, () => ({
     clientSecret: getEnvSafely('GITHUB_CLIENT_SECRET'),
     redirectUrl: getEnvSafely('GITHUB_REDIRECT_URL'),
   },
-  worker: {
-    protocol: process.env['WORKER_PROTOCOL'] || 'http',
-    host: process.env['WORKER_HOST'] || '127.0.0.1',
-    port: Number(process.env['WORKER_PORT']) || 4200,
+  analyzer: {
+    protocol: process.env['ANALYZER_PROTOCOL'] || 'http',
+    host: process.env['ANALYZER_HOST'] || '127.0.0.1',
+    port: Number(process.env['ANALYZER_PORT']) || 4200,
     get url() {
       return `${this.protocol}://${this.host}:${this.port}`;
     },
+  },
+  gcp: {
+    projectId: getEnvSafely('GOOGLE_PROJECT_ID'),
+    region: process.env['GOOGLE_PROJECT_REGION'] || 'us-central1',
+    bucketName: getEnvSafely('GOOGLE_BUCKET_NAME'),
+    keyFilename: getEnvSafely('GOOGLE_APPLICATION_CREDENTIALS'),
+    studio_ai: getEnvSafely('GOOGLE_AI_STUDIO_API_KEY'),
   },
 }));
 

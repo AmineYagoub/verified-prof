@@ -1,7 +1,7 @@
-import 'dotenv/config';
-import { betterAuth } from 'better-auth';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import 'dotenv/config';
 import { PrismaClient } from '../../../prisma/src/generated';
 import { encrypt } from './encrypt';
 
@@ -52,20 +52,6 @@ export const auth = betterAuth({
       trustedProviders: ['github'],
     },
   },
-  user: {
-    additionalFields: {
-      githubUsername: {
-        type: 'string',
-        required: false,
-        unique: true,
-      },
-      githubId: {
-        type: 'number',
-        required: false,
-        unique: true,
-      },
-    },
-  },
   databaseHooks: {
     account: {
       create: {
@@ -88,6 +74,23 @@ export const auth = betterAuth({
           return {
             data: withEncryptedTokens,
           };
+        },
+      },
+      update: {
+        async after(account) {
+          await fetch(
+            `${process.env['NEXT_PUBLIC_WORKER_SERVICE_URL']}/webhooks/account-updated`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: account.userId,
+                providerId: account.providerId,
+              }),
+            },
+          );
         },
       },
     },

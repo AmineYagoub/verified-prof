@@ -1,5 +1,6 @@
 export const ALLOWED_AVATAR_MIME_TYPES = [
   'image/jpeg',
+  'image/jpg',
   'image/png',
   'image/webp',
   'image/gif',
