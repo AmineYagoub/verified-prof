@@ -19,7 +19,6 @@ model User {
   sessions            Session[]
   githubUsername      String?              @unique
   githubId            Int?                 @unique
-  bio                 String?
   achievements        Achievement[]
   badges              Badge[]
   skills              Skill[]
@@ -31,6 +30,7 @@ model User {
   verificationClaims  VerificationClaim[]
   skillEvidence       SkillEvidence[]
   skillAssessments    SkillAssessment[]
+  stackDna            StackDna[]
 }
 
 model Account {
@@ -102,6 +102,7 @@ model Achievement {
   confidence         Float?
   provider           ProviderType        @default(GITHUB)
   providerData       Json?
+  architectData      Json?
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   snapshot           AnalysisSnapshot?   @relation(fields: [snapshotId], references: [id])
 
@@ -235,6 +236,7 @@ model AnalysisJob {
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   snapshots       AnalysisSnapshot[]
   fingerprints    DataFingerprint[]
+  createdAt       DateTime           @default(now())
 
   @@index([userId, status])
   @@index([status, priority(sort: Asc)])
@@ -274,12 +276,91 @@ model AnalysisSnapshot {
   badges              Badge[]
   skills              Skill[]
   user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job                 AnalysisJob          @relation(fields: [jobId], references: [id])
+  job                 AnalysisJob          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   userCurrentProfiles UserCurrentProfile[]
   commitSignals       CommitSignal[]
+  repositoryLanguages RepositoryLanguage[]
+  stackDna            StackDna[]
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([status])
+}
+
+model RepositoryLanguage {
+  id         String   @id @default(cuid())
+  snapshotId String
+  userId     String
+  
+  repoFullName String
+  repoOwner    String
+  repoName     String
+  createdAt    DateTime
+  pushedAt     DateTime?
+  
+  language     String
+  bytes        Int
+  isPrimary    Boolean  @default(false)
+  
+  firstCommitDate DateTime?
+  lastCommitDate  DateTime?
+  
+  year         Int
+  
+  snapshot AnalysisSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  
+  @@unique([snapshotId, repoFullName, language])
+  @@index([userId, language, year])
+  @@index([userId, firstCommitDate])
+}
+
+model StackDna {
+  id              String   @id @default(cuid())
+  userId          String
+  snapshotId      String
+  
+  topLanguage     String?
+  topIntensity    Float?
+  secondLanguage  String?
+  secondIntensity Float?
+  thirdLanguage   String?
+  thirdIntensity  Float?
+  
+  languageCount   Int      @default(0)
+  avgIntensity    Float    @default(0)
+  totalBytes      BigInt   @default(0)
+  
+  generatedAt     DateTime @default(now())
+  
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshot  AnalysisSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  milestones LanguageMilestone[]
+  
+  @@unique([userId, snapshotId])
+  @@index([userId, generatedAt])
+  @@index([topLanguage])
+  @@index([topIntensity])
+  @@index([languageCount])
+  @@index([avgIntensity])
+}
+
+model LanguageMilestone {
+  id          String   @id @default(cuid())
+  stackDnaId  String
+  
+  language    String
+  startYear   Int
+  lastYear    Int
+  intensity   Float
+  peakYear    Int
+  totalBytes  BigInt
+  yearsActive Int
+  
+  stackDna StackDna @relation(fields: [stackDnaId], references: [id], onDelete: Cascade)
+  
+  @@unique([stackDnaId, language])
+  @@index([language, intensity])
+  @@index([yearsActive])
+  @@index([intensity])
 }
 
 // Individual commit signal
@@ -303,7 +384,7 @@ model CommitSignal {
   isTrivial   Boolean
   isGenerated Boolean
 
-  snapshot       AnalysisSnapshot      @relation(fields: [snapshotId], references: [id])
+  snapshot       AnalysisSnapshot      @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
   qualityMetrics CommitQualityMetrics?
 }
 
@@ -412,17 +493,28 @@ model UserCurrentProfile {
 
   displayName String?
   tagline     String?
-  topSkills   String[]
+  topSkills   String[] @default([])
   badgeLevel  String?
 
-  isPublic Boolean @default(false)
+  bio      String?
+  location String?
+  website  String?
+  company  String?
+
+  aiGeneratedBio          String?
+  aiSkillsSummary         String?
+  aiQualityMetricsSummary String?
+  aiSummariesGeneratedAt  DateTime?
+
+  isPublic Boolean @default(true)
   slug     String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user            User             @relation(fields: [userId], references: [id])
-  currentSnapshot AnalysisSnapshot @relation(fields: [currentSnapshotId], references: [id])
+  profileViews    ProfileView[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentSnapshot AnalysisSnapshot @relation(fields: [currentSnapshotId], references: [id], onDelete: Cascade)
 
   @@index([isPublic])
   @@index([slug])
@@ -445,12 +537,12 @@ model DataFingerprint {
   createdAt     DateTime @default(now())
 
   analysisJobId String
-  analysisJob   AnalysisJob @relation(fields: [analysisJobId], references: [id])
+  analysisJob   AnalysisJob @relation(fields: [analysisJobId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, provider, resourceType, resourceIdentifier, analysisJobId])
   @@index([userId, provider, resourceType])
   @@index([fingerprint])
   @@index([lastFetchedAt])
+  @@index([analysisJobId])
 }
 
 // Skill evidence (without raw data)
@@ -544,6 +636,17 @@ model VerificationClaim {
   @@index([verificationUrl])
 }
 
+model ProfileView {
+  id        String             @id @default(cuid())
+  profileId String
+  profile   UserCurrentProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  viewedAt  DateTime           @default(now())
+  referrer  String?
+  ipHash    String?
+
+  @@index([profileId, viewedAt])
+}
+
 // Provider connections
 model ProviderConnection {
   id     String @id @default(cuid())
@@ -562,7 +665,7 @@ model ProviderConnection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
 }
@@ -591,7 +694,7 @@ model UserSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // Snapshot and Analysis
@@ -623,6 +726,7 @@ enum FingerprintResourceType {
 
 enum EvidenceType {
   CODE_COMMIT
+  DOCUMENTATION
   PR_MERGED
   CODE_REVIEW
   ISSUE_COMMENT
