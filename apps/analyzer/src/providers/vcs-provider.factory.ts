@@ -1,9 +1,12 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import { PrismaService } from '@verified-prof/prisma';
+import { createHash } from 'crypto';
 import {
+  EVENTS,
   IVcsProvider,
   IVcsProviderFactory,
   VcsProviderType,
@@ -51,7 +54,8 @@ export class VcsProviderFactory implements IVcsProviderFactory {
     type: VcsProviderType,
     token: string,
   ): Promise<IVcsProvider> {
-    const cacheKey = `${type}:token:${token.substring(0, 10)}`;
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const cacheKey = `${type}:token:${tokenHash.substring(0, 10)}`;
     const cached = this.providers.get(cacheKey);
     if (cached) {
       return cached;
@@ -119,7 +123,7 @@ export class VcsProviderFactory implements IVcsProviderFactory {
         throw new Error(`No access token found for user ${userId} on ${type}`);
       }
       token = decrypt(account.accessToken, userId);
-      await this.cacheManager.set(cacheKey, token, 3600 * 1000);
+      await this.cacheManager.set(cacheKey, token, 3600);
     }
     return token;
   }
@@ -137,10 +141,39 @@ export class VcsProviderFactory implements IVcsProviderFactory {
     return this.createProvider(providerType, token);
   }
 
+  async clearProviderCacheForUser(
+    userId: string,
+    type?: VcsProviderType | string,
+  ): Promise<void> {
+    if (type) {
+      const prefix = `${type}:${userId}`;
+      for (const key of Array.from(this.providers.keys())) {
+        if (key.startsWith(prefix)) {
+          this.providers.delete(key);
+        }
+      }
+      const tokenCacheKey = `${type}-authToken-${userId}`;
+      await this.cacheManager.del(tokenCacheKey);
+      return;
+    }
+    for (const key of Array.from(this.providers.keys())) {
+      if (key.includes(`:${userId}`)) this.providers.delete(key);
+    }
+    const potentialProviders = Object.values(VcsProviderType) as string[];
+    for (const p of potentialProviders) {
+      await this.cacheManager.del(`${p}-authToken-${userId}`);
+    }
+  }
+
   /**
    * Get provider for user's repository
    * Fetches user's token from database
    */
+  @OnEvent(EVENTS.ACCOUNT_UPDATED)
+  async handleAccountUpdated(payload: { userId: string; providerId?: string }) {
+    await this.clearProviderCacheForUser(payload.userId, payload.providerId);
+  }
+
   async getProviderForUser(
     userId: string,
     type: VcsProviderType = VcsProviderType.GITHUB,

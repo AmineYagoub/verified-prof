@@ -47,6 +47,10 @@ export class GitHubVcsProvider implements IVcsProvider {
   }
 
   getOctokit(): Octokit {
+    if (!this.octokit)
+      throw new Error(
+        'Provider not initialized. Call initialize(token) first.',
+      );
     return this.octokit;
   }
 
@@ -290,10 +294,24 @@ export class GitHubVcsProvider implements IVcsProvider {
         return [];
       }
 
+      // Resolve branch -> commit sha, then fetch tree by commit sha
+      const branchResp = await this.octokit.rest.repos.getBranch({
+        owner,
+        repo,
+        branch: repo_data.default_branch,
+      });
+      const commitSha = branchResp.data?.commit?.sha;
+      if (!commitSha) {
+        this.logger.warn(
+          `Could not resolve branch commit for ${owner}/${repo}`,
+        );
+        return [];
+      }
+
       const { data } = await this.octokit.rest.git.getTree({
         owner,
         repo,
-        tree_sha: repo_data.default_branch,
+        tree_sha: commitSha,
         recursive: recursive ? 'true' : undefined,
       });
 
