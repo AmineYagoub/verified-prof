@@ -71,7 +71,8 @@
       "plugin": "@nx/jest/plugin",
       "options": {
         "targetName": "test"
-      }
+      },
+      "exclude": ["analyzer-e2e/**/*", "apps/analyzer-e2e/**/*"]
     }
   ],
   "generators": {

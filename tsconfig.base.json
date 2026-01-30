@@ -17,6 +17,7 @@
       "@verified-prof/web/*": ["apps/web/src/*"],
       "@verified-prof/prisma": ["libs/prisma/src/index.ts"],
       "@verified-prof/shared": ["libs/shared/src/index.ts"],
+      "@verified-prof/shared/client": ["libs/shared/src/client.ts"],
       "@verified-prof/config": ["libs/config/src/index.ts"]
     }
   },
