@@ -21,12 +21,13 @@ async function bootstrap() {
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: true },
     }),
   );
-  await app.listen(config.worker.port, '0.0.0.0');
+  await app.listen(config.analyzer.port, '0.0.0.0');
 
-  Logger.log(`🚀 Analyzer is running on: ${config.worker.url}`);
-  Logger.log(`📊 Health check: ${config.worker.url}/health`);
+  Logger.log(`🚀 Analyzer is running on: ${config.analyzer.url}`);
+  Logger.log(`📊 Health check: ${config.analyzer.url}/health`);
 }
 
 bootstrap();
