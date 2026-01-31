@@ -6,9 +6,9 @@ import { Cache } from 'cache-manager';
 import { PrismaService } from '@verified-prof/prisma';
 import { createHash } from 'crypto';
 import {
-  EVENTS,
   IVcsProvider,
   IVcsProviderFactory,
+  JOB_EVENTS,
   VcsProviderType,
   decrypt,
 } from '@verified-prof/shared';
@@ -169,7 +169,7 @@ export class VcsProviderFactory implements IVcsProviderFactory {
    * Get provider for user's repository
    * Fetches user's token from database
    */
-  @OnEvent(EVENTS.ACCOUNT_UPDATED)
+  @OnEvent(JOB_EVENTS.ACCOUNT_UPDATED)
   async handleAccountUpdated(payload: { userId: string; providerId?: string }) {
     await this.clearProviderCacheForUser(payload.userId, payload.providerId);
   }
