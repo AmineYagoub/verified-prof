@@ -7,6 +7,8 @@ import { ProvidersModule } from '../providers/providers.module';
 import { HealthController } from './app.controller';
 import { WebhookModule } from '../webhooks/webhook.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { PersistsModule } from '../persists/persists.module';
+import { AnalyzerModule } from '../orchestration/analyzer.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     AuthModule.forRoot({ auth }),
     ProvidersModule,
     WebhookModule,
+    PersistsModule,
+    AnalyzerModule,
   ],
   controllers: [HealthController],
   providers: [],
