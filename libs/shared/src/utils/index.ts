@@ -2,33 +2,34 @@ export * from './logger';
 export * from './auth';
 export * from './encrypt';
 
-export const PLAN_POLICIES: Record<
-  'FREE' | 'PREMIUM',
-  {
-    plan: 'FREE' | 'PREMIUM';
-    windowDays: number;
-    maxCommits: number;
-    maxRepositories: number;
-    commitsPerPage: number;
-    repositoriesPerPage: number;
-    allowSampling: boolean;
-    snapshotFrequency: 'monthly' | 'weekly';
-    aiExplanations: {
-      enabled: boolean;
-      maxCommitsForAI: number;
-      maxExplanationsPerAnalysis: number;
-    };
-    rateLimit: {
-      maxAnalysisPerDay: number;
-      maxAnalysisPerMonth: number;
-    };
-  }
-> = {
+export interface PlanPolicy {
+  plan: 'FREE' | 'PREMIUM';
+  windowDays: number;
+  maxCommits: number;
+  maxFilesPerCommit: number;
+  maxRepositories: number;
+  commitsPerPage: number;
+  repositoriesPerPage: number;
+  allowSampling: boolean;
+  snapshotFrequency: 'monthly' | 'weekly';
+  aiExplanations: {
+    enabled: boolean;
+    maxCommitsForAI: number;
+    maxExplanationsPerAnalysis: number;
+  };
+  rateLimit: {
+    maxAnalysisPerDay: number;
+    maxAnalysisPerMonth: number;
+  };
+}
+
+export const PLAN_POLICIES: Record<'FREE' | 'PREMIUM', PlanPolicy> = {
   FREE: {
     plan: 'FREE',
     windowDays: 90,
-    maxCommits: 1000,
+    maxCommits: 10,
     maxRepositories: 10,
+    maxFilesPerCommit: 25,
     commitsPerPage: 100,
     repositoriesPerPage: 10,
     allowSampling: true,
@@ -48,6 +49,7 @@ export const PLAN_POLICIES: Record<
     windowDays: 365,
     maxCommits: 10000,
     maxRepositories: 50,
+    maxFilesPerCommit: 100,
     commitsPerPage: 100,
     repositoriesPerPage: 50,
     allowSampling: true,
