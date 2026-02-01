@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@verified-prof/prisma';
-import { encrypt, AccountUpdatedDto, EVENTS } from '@verified-prof/shared';
+import { encrypt, AccountUpdatedDto, JOB_EVENTS } from '@verified-prof/shared';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
@@ -38,7 +38,7 @@ export class WebhookService {
       },
     });
 
-    this.eventEmitter.emit(EVENTS.ACCOUNT_UPDATED, {
+    this.eventEmitter.emit(JOB_EVENTS.ACCOUNT_UPDATED, {
       userId: input.userId,
       providerId: input.providerId,
     });
