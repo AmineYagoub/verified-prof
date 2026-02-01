@@ -9,6 +9,7 @@ import { WebhookModule } from '../webhooks/webhook.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PersistsModule } from '../persists/persists.module';
 import { AnalyzerModule } from '../orchestration/analyzer.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AnalyzerModule } from '../orchestration/analyzer.module';
     WebhookModule,
     PersistsModule,
     AnalyzerModule,
+    AiModule,
   ],
   controllers: [HealthController],
   providers: [],
