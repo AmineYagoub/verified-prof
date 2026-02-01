@@ -48,6 +48,15 @@ export class GitHubVcsProvider implements IVcsProvider {
     return VcsProviderType.GITHUB;
   }
 
+  getOctokit(): Octokit {
+    if (!this.octokit) {
+      throw new Error(
+        'GitHub provider not initialized. Call initialize() first.',
+      );
+    }
+    return this.octokit;
+  }
+
   private async getSetOfCommitsFromRepo(
     repo: string,
     owner: string,
@@ -230,6 +239,20 @@ export class GitHubVcsProvider implements IVcsProvider {
           commitDetailsArray.push({
             sha: commitDetails.sha,
             contents: filesWithContent,
+            author: commitDetails.commit.author
+              ? {
+                  name: commitDetails.commit.author.name || '',
+                  email: commitDetails.commit.author.email || '',
+                  date: commitDetails.commit.author.date || '',
+                }
+              : undefined,
+            stats: commitDetails.stats
+              ? {
+                  additions: commitDetails.stats.additions || 0,
+                  deletions: commitDetails.stats.deletions || 0,
+                }
+              : undefined,
+            parentShas: commitDetails.parents.map((p) => p.sha),
           });
         }
       } catch (error) {
