@@ -52,6 +52,7 @@ export class AnalyzerOrchestrationService {
               repo: f.repository,
               commitSha: c.sha,
               filePath: f.filename,
+              userId,
               tagSummary,
             });
           }
@@ -62,12 +63,18 @@ export class AnalyzerOrchestrationService {
             0,
           );
           const commitMessage = c.contents?.[0]?.message ?? '';
+          const [repoOwner, repoName] = r.repository.split('/');
           missionEvents.push(
             new MissionEvent(
               {
                 commit_message: commitMessage,
                 total_files: totalFiles,
                 total_complexity: totalComplexity,
+                repoOwner,
+                repoName,
+                commitAuthor: c.author,
+                commitStats: c.stats,
+                parentShas: c.parentShas,
               },
               commitSummaries,
             ),
