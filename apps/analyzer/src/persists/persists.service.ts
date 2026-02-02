@@ -203,6 +203,13 @@ export class PersistsService {
               repo.name,
               commitShas,
               userId,
+              missionEvents.map((m) => ({
+                commitAuthor: m.mission_metadata.commitAuthor,
+                summaries: m.summaries.map((s) => ({
+                  filePath: s.filePath,
+                  fileStats: s.fileStats,
+                })),
+              })),
             );
 
           allMetrics.codeOwnership.push(
