@@ -12,6 +12,7 @@ import { AnalyzerModule } from '../orchestration/analyzer.module';
 import { AiModule } from '../ai/ai.module';
 import { ProfileModule } from '../profile/profile.module';
 import { TechStackModule } from '../tech-stack/tech-stack.module';
+import { MissionsModule } from '../missions/missions.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { TechStackModule } from '../tech-stack/tech-stack.module';
     AiModule,
     ProfileModule,
     TechStackModule,
+    MissionsModule,
   ],
   controllers: [HealthController],
   providers: [],
