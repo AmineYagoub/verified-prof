@@ -40,7 +40,7 @@ export const appConfig = registerAs(APP_CONFIG_REGISTER_KEY, () => ({
     region: process.env['GOOGLE_PROJECT_REGION'] || 'us-central1',
     bucketName: getEnvSafely('GOOGLE_BUCKET_NAME'),
     keyFilename: getEnvSafely('GOOGLE_APPLICATION_CREDENTIALS'),
-    studio_ai: getEnvSafely('GOOGLE_AI_STUDIO_API_KEY'),
+    studioAiKey: getEnvSafely('GOOGLE_AI_STUDIO_API_KEY'),
   },
 }));
 
