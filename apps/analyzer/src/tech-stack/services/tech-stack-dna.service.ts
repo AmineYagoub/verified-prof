@@ -10,6 +10,16 @@ import {
 } from '@verified-prof/shared';
 import { TechStackCalculatorService } from './tech-stack-calculator.service';
 
+type LanguageStats = {
+  totalComplexity: number;
+  totalFiles: number;
+  weeklyComplexity: Map<string, number>;
+  firstSeen: Date;
+  lastUsed: Date;
+  weeksActive: number;
+  imports: Map<string, number>;
+};
+
 @Injectable()
 export class TechStackDnaService {
   private readonly logger = new Logger(TechStackDnaService.name);
@@ -96,19 +106,25 @@ export class TechStackDnaService {
       userProfile.id,
       learningCurveTrend,
       dominantLanguages,
+      languageStats,
     );
 
-    return {
-      languages: languageNames.map((name) => ({
+    const languages: LanguageExpertise[] = languageNames.map((name) => {
+      const stats = languageStats.get(name);
+      return {
         name,
-        expertise: 0,
-        daysToMastery: 0,
+        expertise: stats.totalComplexity,
+        daysToMastery: Math.ceil(stats.weeksActive * 7),
         topLibraryPatterns: [],
         weeklyIntensity: [],
-        firstSeen: new Date().toISOString(),
-        lastUsed: new Date().toISOString(),
-        weeksActive: 0,
-      })),
+        firstSeen: stats.firstSeen.toISOString(),
+        lastUsed: stats.lastUsed.toISOString(),
+        weeksActive: stats.weeksActive,
+      };
+    });
+
+    return {
+      languages,
       learningCurveTrend,
       dominantLanguages,
     };
@@ -118,6 +134,7 @@ export class TechStackDnaService {
     userProfileId: string,
     learningCurveTrend: LearningCurveTrend,
     dominantLanguages: string[],
+    languageStats: Map<string, LanguageStats>,
   ) {
     await this.prisma.client.techStackDNA.upsert({
       where: { userProfileId },
@@ -132,8 +149,35 @@ export class TechStackDnaService {
       },
     });
 
+    for (const [languageName, stats] of languageStats.entries()) {
+      await this.prisma.client.languageExpertise.upsert({
+        where: {
+          userProfileId_name: {
+            userProfileId,
+            name: languageName,
+          },
+        },
+        create: {
+          userProfileId,
+          name: languageName,
+          expertise: stats.totalComplexity,
+          daysToMastery: Math.ceil(stats.weeksActive * 7),
+          topLibraryPatterns: [],
+          firstSeen: stats.firstSeen,
+          lastUsed: stats.lastUsed,
+          weeksActive: stats.weeksActive,
+        },
+        update: {
+          expertise: stats.totalComplexity,
+          daysToMastery: Math.ceil(stats.weeksActive * 7),
+          lastUsed: stats.lastUsed,
+          weeksActive: stats.weeksActive,
+        },
+      });
+    }
+
     this.logger.log(
-      `Persisted Tech Stack DNA: ${dominantLanguages.length} dominant languages, trend: ${learningCurveTrend}`,
+      `Persisted Tech Stack DNA: ${languageStats.size} languages, ${dominantLanguages.length} dominant languages, trend: ${learningCurveTrend}`,
     );
   }
 
