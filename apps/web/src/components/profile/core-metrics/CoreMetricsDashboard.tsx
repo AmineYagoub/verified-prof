@@ -69,7 +69,7 @@ export const CoreMetricsDashboard = ({ userId }: CoreMetricsDashboardProps) => {
   }
 
   return (
-    <div className="space-y-6">
+    <>
       <section className="flex flex-col lg:flex-row gap-2">
         <SpecializationBadge
           specialization={metrics.specialization}
@@ -136,6 +136,6 @@ export const CoreMetricsDashboard = ({ userId }: CoreMetricsDashboardProps) => {
 
         <ComplexityMetric value={metrics.systemComplexityScore} />
       </section>
-    </div>
+    </>
   );
 };

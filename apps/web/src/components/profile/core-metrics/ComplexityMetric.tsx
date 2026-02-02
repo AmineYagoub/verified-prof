@@ -24,7 +24,7 @@ export const ComplexityMetric = ({ value }: ComplexityMetricProps) => {
 
   const option: EChartsOption = {
     title: {
-      text: 'System Complexity Score',
+      text: 'Logic Complexity Score',
       left: 'center',
       textStyle: {
         color: 'rgb(196, 181, 253)',
