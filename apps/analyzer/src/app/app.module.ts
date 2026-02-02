@@ -10,6 +10,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PersistsModule } from '../persists/persists.module';
 import { AnalyzerModule } from '../orchestration/analyzer.module';
 import { AiModule } from '../ai/ai.module';
+import { ProfileModule } from '../profile/profile.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AiModule } from '../ai/ai.module';
     PersistsModule,
     AnalyzerModule,
     AiModule,
+    ProfileModule,
   ],
   controllers: [HealthController],
   providers: [],
