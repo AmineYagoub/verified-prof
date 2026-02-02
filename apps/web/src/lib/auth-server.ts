@@ -1,6 +1,5 @@
+import { auth } from '@verified-prof/shared';
 import { cookies } from 'next/headers';
-import { auth } from './auth';
-import { logger } from '@verified-prof/shared';
 
 export async function getSession() {
   const cookieStore = await cookies();
@@ -15,8 +14,7 @@ export async function getSession() {
       },
     });
     return session;
-  } catch (error) {
-    logger.error('Error getting session:', error);
+  } catch {
     return null;
   }
 }
