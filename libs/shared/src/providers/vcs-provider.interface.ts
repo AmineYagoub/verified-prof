@@ -23,6 +23,16 @@ export interface CommitsContent {
 export interface CommitDetails {
   sha: string;
   contents: CommitsContent[];
+  author?: {
+    name: string;
+    email: string;
+    date: string;
+  };
+  stats?: {
+    additions: number;
+    deletions: number;
+  };
+  parentShas?: string[];
 }
 
 export interface AnalyzerResults {
