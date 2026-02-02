@@ -5,7 +5,7 @@ import {
   IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { TagSummary } from '../../types';
+import { type TagSummary } from '../../types/ast-analysis';
 
 export class TagSummaryEvent {
   @IsString()
@@ -17,14 +17,20 @@ export class TagSummaryEvent {
   @IsString()
   filePath!: string;
 
-  @IsOptional()
   @IsString()
-  userId?: string;
+  userId!: string;
 
   @IsObject()
   @ValidateNested()
   @Type(() => Object)
   tagSummary!: TagSummary;
+
+  @IsOptional()
+  fileStats?: {
+    additions: number;
+    deletions: number;
+    changes: number;
+  };
 }
 
 export class MissionMetadata {
@@ -36,6 +42,31 @@ export class MissionMetadata {
 
   @IsString()
   total_complexity!: number;
+
+  @IsOptional()
+  @IsString()
+  repoOwner?: string;
+
+  @IsOptional()
+  @IsString()
+  repoName?: string;
+
+  @IsOptional()
+  commitAuthor?: {
+    name: string;
+    email: string;
+    date: string;
+  };
+
+  @IsOptional()
+  commitStats?: {
+    additions: number;
+    deletions: number;
+  };
+
+  @IsOptional()
+  @IsString({ each: true })
+  parentShas?: string[];
 }
 
 export class MissionEvent {
