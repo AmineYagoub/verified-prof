@@ -54,6 +54,11 @@ export class AnalyzerOrchestrationService {
               filePath: f.filename,
               userId,
               tagSummary,
+              fileStats: {
+                additions: f.additions,
+                deletions: f.deletions,
+                changes: f.changes,
+              },
             });
           }
 
