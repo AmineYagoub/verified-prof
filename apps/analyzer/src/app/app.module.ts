@@ -11,6 +11,7 @@ import { PersistsModule } from '../persists/persists.module';
 import { AnalyzerModule } from '../orchestration/analyzer.module';
 import { AiModule } from '../ai/ai.module';
 import { ProfileModule } from '../profile/profile.module';
+import { TechStackModule } from '../tech-stack/tech-stack.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ProfileModule } from '../profile/profile.module';
     AnalyzerModule,
     AiModule,
     ProfileModule,
+    TechStackModule,
   ],
   controllers: [HealthController],
   providers: [],
