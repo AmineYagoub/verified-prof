@@ -9,6 +9,9 @@ export const JOB_EVENTS = {
   ANALYSIS_TAG_SUMMARY: 'analysis.tag_summary',
   ANALYSIS_PERSISTED: 'analysis.persisted',
 
+  // Mission Generation
+  MISSION_GENERATION_REQUESTED: 'mission.generation.requested',
+
   // Job Lifecycle
   JOB_STARTED: 'job.started',
   JOB_PROGRESS: 'job.progress',
@@ -22,3 +25,4 @@ export * from './jobs/trigger-analyzer.event';
 export * from './jobs/tag-summary.event';
 export * from './jobs/job-progress.event';
 export * from './jobs/analysis-persisted.event';
+export * from './missions/mission-generation-requested.event';
