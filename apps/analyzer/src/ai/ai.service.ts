@@ -90,6 +90,7 @@ export class AiService {
       systemComplexityScore: number;
       velocityPercentile: number;
       seniorityRank: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
+      specialization: string;
       sTierVerificationHash: string;
       trend: 'IMPROVING' | 'STABLE' | 'DECLINING' | null;
     }>(fullPrompt, prompt.jsonSchema);
@@ -108,6 +109,7 @@ export class AiService {
       systemComplexityScore: number;
       velocityPercentile: number;
       seniorityRank: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
+      specialization: string;
       sTierVerificationHash: string;
       trend: 'IMPROVING' | 'STABLE' | 'DECLINING' | null;
     },
@@ -134,6 +136,7 @@ export class AiService {
         systemComplexityScore: metrics.systemComplexityScore,
         velocityPercentile: metrics.velocityPercentile,
         seniorityRank: metrics.seniorityRank,
+        specialization: metrics.specialization,
         sTierVerificationHash: metrics.sTierVerificationHash,
         trend: metrics.trend,
         periodStart: new Date(),
@@ -147,6 +150,7 @@ export class AiService {
         systemComplexityScore: metrics.systemComplexityScore,
         velocityPercentile: metrics.velocityPercentile,
         seniorityRank: metrics.seniorityRank,
+        specialization: metrics.specialization,
         sTierVerificationHash: metrics.sTierVerificationHash,
         trend: metrics.trend,
         periodStart: new Date(),
