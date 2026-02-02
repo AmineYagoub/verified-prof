@@ -49,6 +49,13 @@ export class GitHubCollaborationService {
     repo: string,
     commitShas: string[],
     userId: string,
+    missionEvents: Array<{
+      commitAuthor?: { email: string; name: string; date: string };
+      summaries: Array<{
+        filePath: string;
+        fileStats?: { additions: number; deletions: number; changes: number };
+      }>;
+    }>,
   ): Promise<CollaborationMetrics> {
     const apiCallCounter = { count: 0 };
 
@@ -65,14 +72,7 @@ export class GitHubCollaborationService {
         userId,
         apiCallCounter,
       ),
-      this.getCodeOwnership(
-        octokit,
-        owner,
-        repo,
-        commitShas,
-        userId,
-        apiCallCounter,
-      ),
+      this.getCodeOwnershipFromEvents(userId, missionEvents),
       this.getTeamInfo(octokit, owner, repo, apiCallCounter),
     ]);
 
@@ -150,140 +150,92 @@ export class GitHubCollaborationService {
     return reviews;
   }
 
-  private async getCodeOwnership(
-    octokit: Octokit,
-    owner: string,
-    repo: string,
-    commitShas: string[],
-    _userId: string,
-    apiCallCounter: { count: number },
-  ): Promise<Map<string, CodeOwnership>> {
+  private getCodeOwnershipFromEvents(
+    userId: string,
+    missionEvents: Array<{
+      commitAuthor?: { email: string; name: string; date: string };
+      summaries: Array<{
+        filePath: string;
+        fileStats?: { additions: number; deletions: number; changes: number };
+      }>;
+    }>,
+  ): Map<string, CodeOwnership> {
     const ownershipMap = new Map<string, CodeOwnership>();
+    const fileTouches = new Map<
+      string,
+      {
+        authorTouches: number;
+        totalTouches: number;
+        authorLinesChanged: number;
+        totalLinesChanged: number;
+        dates: Date[];
+      }
+    >();
 
-    try {
-      apiCallCounter.count++;
-      const { data: user } = await octokit.rest.users.getAuthenticated();
-      const username = user.login;
+    for (const mission of missionEvents) {
+      const isAuthorCommit = mission.commitAuthor !== undefined;
+      const commitDate = mission.commitAuthor?.date
+        ? new Date(mission.commitAuthor.date)
+        : new Date();
 
-      for (const sha of commitShas) {
-        try {
-          apiCallCounter.count++;
-          const { data: commit } = await octokit.rest.repos.getCommit({
-            owner,
-            repo,
-            ref: sha,
+      for (const summary of mission.summaries) {
+        const filePath = summary.filePath;
+        const linesChanged =
+          (summary.fileStats?.additions || 0) +
+          (summary.fileStats?.deletions || 0);
+        const existing = fileTouches.get(filePath);
+
+        if (!existing) {
+          fileTouches.set(filePath, {
+            authorTouches: isAuthorCommit ? 1 : 0,
+            totalTouches: 1,
+            authorLinesChanged: isAuthorCommit ? linesChanged : 0,
+            totalLinesChanged: linesChanged,
+            dates: [commitDate],
           });
-          const isAuthor =
-            commit.commit.author?.name === username ||
-            commit.author?.login === username;
-
-          for (const file of commit.files || []) {
-            const existing = ownershipMap.get(file.filename);
-
-            if (!existing) {
-              apiCallCounter.count++;
-              const { data: commits } = await octokit.rest.repos.listCommits({
-                owner,
-                repo,
-                path: file.filename,
-                per_page: 100,
-              });
-
-              const authorCommits = commits.filter(
-                (c) =>
-                  c.commit.author?.name === username ||
-                  c.author?.login === username,
-              ).length;
-
-              const firstCommit = commits[commits.length - 1];
-              const lastCommit = commits[0];
-
-              if (
-                !firstCommit?.commit.author?.date ||
-                !lastCommit?.commit.author?.date
-              )
-                continue;
-
-              ownershipMap.set(file.filename, {
-                filePath: file.filename,
-                totalCommits: commits.length,
-                authorCommits,
-                ownershipPercentage: (authorCommits / commits.length) * 100,
-                firstTouchedAt: new Date(firstCommit.commit.author.date),
-                lastTouchedAt: new Date(lastCommit.commit.author.date),
-              });
-            } else if (isAuthor) {
-              existing.authorCommits++;
-              existing.ownershipPercentage =
-                (existing.authorCommits / existing.totalCommits) * 100;
-            }
+        } else {
+          existing.totalTouches++;
+          existing.totalLinesChanged += linesChanged;
+          if (isAuthorCommit) {
+            existing.authorTouches++;
+            existing.authorLinesChanged += linesChanged;
           }
-        } catch (error) {
-          const status = (error as { status?: number })?.status;
-          if (status === 404 || status === 422) {
-            continue;
-          }
-          this.logger.warn(
-            `Failed to calculate ownership for ${sha}: ${(error as Error).message}`,
-          );
+          existing.dates.push(commitDate);
         }
       }
-    } catch (error) {
-      this.logger.error(`Failed to get code ownership: ${error.message}`);
     }
+
+    for (const [filePath, touches] of fileTouches.entries()) {
+      if (touches.totalTouches === 0) continue;
+
+      const sortedDates = touches.dates.sort(
+        (a, b) => a.getTime() - b.getTime(),
+      );
+
+      const touchBasedOwnership =
+        (touches.authorTouches / touches.totalTouches) * 100;
+      const lineBasedOwnership =
+        touches.totalLinesChanged > 0
+          ? (touches.authorLinesChanged / touches.totalLinesChanged) * 100
+          : touchBasedOwnership;
+
+      const weightedOwnership = (touchBasedOwnership + lineBasedOwnership) / 2;
+
+      ownershipMap.set(filePath, {
+        filePath,
+        totalCommits: touches.totalTouches,
+        authorCommits: touches.authorTouches,
+        ownershipPercentage: weightedOwnership,
+        firstTouchedAt: sortedDates[0],
+        lastTouchedAt: sortedDates[sortedDates.length - 1],
+      });
+    }
+
+    this.logger.log(
+      `Calculated ownership for ${ownershipMap.size} files from event data (0 API calls, weighted by lines changed)`,
+    );
 
     return ownershipMap;
-  }
-
-  private async getCommitMetadata(
-    octokit: Octokit,
-    owner: string,
-    repo: string,
-    commitShas: string[],
-    apiCallCounter: { count: number },
-  ): Promise<CommitMetadata[]> {
-    const metadata: CommitMetadata[] = [];
-
-    for (const sha of commitShas) {
-      try {
-        apiCallCounter.count++;
-        const { data: commit } = await octokit.rest.repos.getCommit({
-          owner,
-          repo,
-          ref: sha,
-        });
-
-        if (
-          !commit.commit.author?.date ||
-          !commit.commit.author?.email ||
-          !commit.commit.author?.name
-        ) {
-          continue;
-        }
-
-        metadata.push({
-          sha: commit.sha,
-          message: commit.commit.message,
-          authorDate: new Date(commit.commit.author.date),
-          authorEmail: commit.commit.author.email,
-          authorName: commit.commit.author.name,
-          additions: commit.stats?.additions || 0,
-          deletions: commit.stats?.deletions || 0,
-          filesChanged: commit.files?.length || 0,
-          parentShas: commit.parents.map((p) => p.sha),
-        });
-      } catch (error) {
-        const status = (error as { status?: number })?.status;
-        if (status === 404 || status === 422) {
-          continue;
-        }
-        this.logger.warn(
-          `Failed to fetch metadata for ${sha}: ${(error as Error).message}`,
-        );
-      }
-    }
-
-    return metadata;
   }
 
   private async getTeamInfo(
