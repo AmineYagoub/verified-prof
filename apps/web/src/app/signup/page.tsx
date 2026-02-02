@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { signUp } from '@verified-prof/web/lib/auth-client';
 import Link from 'next/link';
+import { signUp } from '@verified-prof/web/lib/auth-client';
 
 export default function SignUpPage() {
   const [name, setName] = useState('');
@@ -29,7 +29,7 @@ export default function SignUpPage() {
         // Redirect to home page or dashboard
         window.location.href = '/';
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);

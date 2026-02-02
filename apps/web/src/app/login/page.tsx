@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from '@verified-prof/web/lib/auth-client';
 import Link from 'next/link';
+import { signIn } from '@verified-prof/web/lib/auth-client';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -27,7 +27,7 @@ export default function LoginPage() {
         // Redirect to home page or dashboard
         window.location.href = '/';
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
