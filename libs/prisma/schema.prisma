@@ -16,9 +16,11 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  accounts            Account[]
-  sessions            Session[]
-  providerConnections ProviderConnection[]
+  accounts             Account[]
+  sessions             Session[]
+  providerConnections  ProviderConnection[]
+  analysisTagSummaries AnalysisTagSummary[]
+  userProfile          UserProfile?
 }
 
 model Account {
@@ -95,7 +97,6 @@ model ProviderConnection {
   @@unique([userId, provider])
 }
 
-// Minimal enums for auth models
 enum ProviderType {
   GITHUB
   GITLAB
@@ -108,4 +109,248 @@ enum SyncStatus {
   ERROR
   DISABLED
   RATE_LIMITED
+}
+
+enum SeniorityRank {
+  Junior
+  Mid
+  Senior
+  Staff
+  Principal
+}
+
+enum Trend {
+  IMPROVING
+  STABLE
+  DECLINING
+}
+
+enum LearningCurveTrend {
+  Exponential
+  Steady
+  Specialist
+}
+
+enum MissionImpact {
+  Infrastructure
+  Feature
+  Refactor
+  Fix
+}
+
+enum MentorshipType {
+  GIVEN
+  RECEIVED
+}
+
+model AnalysisTagSummary {
+  id           String   @id @default(cuid())
+  repoFullName String
+  commitSha    String
+  filePath     String
+  contentHash  String
+  userId       String?
+  tagSummary   Json
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([repoFullName, commitSha, filePath])
+  @@index([contentHash])
+  @@index([userId, createdAt])
+}
+
+model UserProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lastAnalyzedAt   DateTime?
+  lastCommitSha    String?
+  analysisProgress Int       @default(0)
+
+  coreMetrics      CoreMetrics?
+  techStackDNA     TechStackDNA?
+  cognitiveStyle   CognitiveStyle?
+  mentorshipRatio  MentorshipRatio?
+  reliabilityScore ReliabilityScore?
+
+  weeklyIntensities    WeeklyIntensity[]
+  languageExpertises   LanguageExpertise[]
+  missions             Mission[]
+  cognitivePatterns    CognitivePattern[]
+  mentorshipActivities MentorshipActivity[]
+  churnHotspots        ChurnHotspot[]
+}
+
+model CoreMetrics {
+  id            String      @id @default(cuid())
+  userProfileId String      @unique
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  codeImpact              Int
+  cycleTime               Float
+  logicDensity            Float
+  systemComplexityScore   Float
+  velocityPercentile      Float
+  seniorityRank           SeniorityRank
+  specialization          String
+  sTierVerificationHash   String
+  trend                   Trend?
+  periodStart             DateTime?
+  periodEnd               DateTime?
+}
+
+model TechStackDNA {
+  id            String      @id @default(cuid())
+  userProfileId String      @unique
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  learningCurveTrend LearningCurveTrend
+  dominantLanguages  String[]
+}
+
+model LanguageExpertise {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  name              String
+  expertise         Float
+  daysToMastery     Int
+  topLibraryPatterns String[]
+  firstSeen         DateTime
+  lastUsed          DateTime
+  weeksActive       Int
+
+  @@unique([userProfileId, name])
+  @@index([userProfileId, expertise])
+}
+
+model WeeklyIntensity {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  week            String
+  language        String
+  intensity       Float
+  complexityScore Float
+  linesWritten    Int
+  filesModified   Int
+
+  @@unique([userProfileId, week, language])
+  @@index([userProfileId, week])
+}
+
+model Mission {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  week              String
+  date              DateTime
+  impact            MissionImpact
+  title             String
+  architecturalFeat String?      @db.Text
+  summary           String       @db.Text
+  achievements      String[]
+  domainContext     String
+  complexityAdded   Float
+  commitCount       Int
+  filesChanged      Int
+  isHeroMission     Boolean      @default(false)
+
+  @@unique([userProfileId, week, date])
+  @@index([userProfileId, date])
+  @@index([userProfileId, isHeroMission])
+}
+
+model CognitiveStyle {
+  id            String      @id @default(cuid())
+  userProfileId String      @unique
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  codingPhilosophy   String @db.Text
+  strengths          String[]
+  mentalModel        String
+  abstractionLevel   Float
+  consistencyScore   Float
+  namingQuality      Float
+  documentationRatio Float
+}
+
+model CognitivePattern {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  pattern   String
+  frequency Float
+  examples  String[]
+
+  @@unique([userProfileId, pattern])
+  @@index([userProfileId, frequency])
+}
+
+model MentorshipRatio {
+  id            String      @id @default(cuid())
+  userProfileId String      @unique
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  reviewQualityScore    Float
+  knowledgeSharingIndex Float
+  topAdviceTag          String
+  mentorshipRatio       Float
+  reviewsGiven          Int
+  reviewsReceived       Int
+  topMentees            String[]
+  topMentors            String[]
+}
+
+model MentorshipActivity {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  type         MentorshipType
+  prNumber     Int
+  repository   String
+  commentCount Int
+  depth        Float
+  date         DateTime
+
+  @@index([userProfileId, date])
+  @@index([userProfileId, type])
+}
+
+model ReliabilityScore {
+  id            String      @id @default(cuid())
+  userProfileId String      @unique
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  codeSurvivalRate      Float
+  bugDensity            Float
+  refactorResistance    Float
+  refactorRatio         Float
+  modularityScore       Float
+  churnStabilization    Float
+  architecturalDecisions String[]
+  avgFileLifespan       Float
+}
+
+model ChurnHotspot {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  filePath     String
+  churnCount   Int
+  lastModified DateTime
+  stabilized   Boolean  @default(false)
+
+  @@unique([userProfileId, filePath])
+  @@index([userProfileId, stabilized])
 }
