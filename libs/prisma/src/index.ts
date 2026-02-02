@@ -3,4 +3,4 @@ export { DbModule } from './lib/db.module';
 export { PrismaService } from './lib/prisma.service';
 
 // Export Prisma enums
-export { ProviderType, SyncStatus } from './generated/client';
+export { ProviderType, SyncStatus, Mission } from './generated/client';

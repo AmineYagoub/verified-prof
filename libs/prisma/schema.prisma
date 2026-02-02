@@ -258,9 +258,7 @@ model Mission {
   summary           String       @db.Text
   achievements      String[]
   domainContext     String
-  complexityAdded   Float
   commitCount       Int
-  filesChanged      Int
   isHeroMission     Boolean      @default(false)
 
   @@unique([userProfileId, week, date])
