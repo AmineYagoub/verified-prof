@@ -13,6 +13,7 @@ import { AiModule } from '../ai/ai.module';
 import { ProfileModule } from '../profile/profile.module';
 import { TechStackModule } from '../tech-stack/tech-stack.module';
 import { MissionsModule } from '../missions/missions.module';
+import { LeadershipModule } from '../leadership/leadership.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { MissionsModule } from '../missions/missions.module';
     ProfileModule,
     TechStackModule,
     MissionsModule,
+    LeadershipModule,
   ],
   controllers: [HealthController],
   providers: [],
