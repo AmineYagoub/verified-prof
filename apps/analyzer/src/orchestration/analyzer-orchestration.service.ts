@@ -11,6 +11,7 @@ import {
   TagSummaryEvent,
 } from '@verified-prof/shared';
 import { AstAnalyzerService } from './ast-analyzer.service';
+import { PrismaService } from '@verified-prof/prisma';
 
 @Injectable()
 export class AnalyzerOrchestrationService {
@@ -20,11 +21,13 @@ export class AnalyzerOrchestrationService {
     private readonly providerFactory: VcsProviderFactory,
     private readonly astAnalyzer: AstAnalyzerService,
     private readonly em: EventEmitter2,
+    private readonly prisma: PrismaService,
   ) {}
 
   @OnEvent(JOB_EVENTS.ANALYSIS_TRIGGERED, { async: true })
   async handleAnalysisTriggered(event: AnalysisTriggeredEvent) {
     try {
+      await this.deleteAllDataForUser(event.userId);
       const { userId, plan } = event;
       const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
       const provider = await this.providerFactory.createProviderForUser(userId);
@@ -32,6 +35,8 @@ export class AnalyzerOrchestrationService {
         maxRepo: policy.maxRepositories,
         maxCommits: policy.maxCommits,
         maxFilesPerCommit: policy.maxFilesPerCommit,
+        commitsPerPage: policy.commitsPerPage,
+        repositoriesPerPage: policy.repositoriesPerPage,
       });
 
       const missionEvents: MissionEvent[] = [];
@@ -80,6 +85,7 @@ export class AnalyzerOrchestrationService {
                 commitAuthor: c.author,
                 commitStats: c.stats,
                 parentShas: c.parentShas,
+                plan: event.plan,
               },
               commitSummaries,
             ),
@@ -122,5 +128,44 @@ export class AnalyzerOrchestrationService {
   private calculateProgress(processed: number, total: number): number {
     if (total <= 0) return 100;
     return Math.min(100, Math.round((processed / total) * 100));
+  }
+
+  private async deleteAllDataForUser(userId: string): Promise<void> {
+    this.logger.log(`Deleting all analysis data for user ${userId}`);
+    await this.prisma.client.analysisTagSummary.deleteMany({
+      where: { userId },
+    });
+    await this.prisma.client.architecturalLayer.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.cognitivePattern.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.cognitiveStyle.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.coreMetrics.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.effortDistribution.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.languageExpertise.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.mentorshipActivity.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.mission.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.techStackDNA.deleteMany({
+      where: { userProfile: { userId } },
+    });
+    await this.prisma.client.weeklyIntensity.deleteMany({
+      where: { userProfile: { userId } },
+    });
+
+    this.logger.log(`All analysis data deleted for user ${userId}`);
   }
 }
