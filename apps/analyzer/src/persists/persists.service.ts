@@ -35,9 +35,13 @@ export class PersistsService {
     let totalFiles = 0;
     let totalComplexity = 0;
     let userId: string | null = null;
+    let plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' | undefined = undefined;
 
     for (const summary of allSummaries) {
       userId = summary.userId;
+      if (!plan && missionEvents[0]?.mission_metadata?.plan) {
+        plan = missionEvents[0].mission_metadata.plan;
+      }
       try {
         await this.prisma.client.analysisTagSummary.upsert({
           where: {
@@ -90,6 +94,7 @@ export class PersistsService {
           repoMetadata,
           commitShas,
           missionEvents,
+          plan || 'FREE',
         );
       } catch (error) {
         this.logger.warn(
@@ -104,6 +109,7 @@ export class PersistsService {
       totalFiles,
       totalComplexity,
       weekStart,
+      plan: plan || 'FREE',
       ...collaborationData,
     } as AnalysisPersistedEvent);
   }
@@ -152,6 +158,7 @@ export class PersistsService {
     repos: Array<{ owner: string; name: string }>,
     commitShas: string[],
     missionEvents: MissionEvent[],
+    plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE',
   ): Promise<Partial<AnalysisPersistedEvent>> {
     try {
       const provider = (await this.providerFactory.createProviderForUser(
@@ -210,6 +217,7 @@ export class PersistsService {
                   fileStats: s.fileStats,
                 })),
               })),
+              plan,
             );
 
           allMetrics.codeOwnership.push(
