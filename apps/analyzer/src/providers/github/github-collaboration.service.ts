@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Octokit } from '@octokit/rest';
+import { PLAN_POLICIES, PlanPolicy } from '@verified-prof/shared';
 
 export interface PullRequestReview {
   commitSha: string;
@@ -56,7 +57,9 @@ export class GitHubCollaborationService {
         fileStats?: { additions: number; deletions: number; changes: number };
       }>;
     }>,
+    plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE',
   ): Promise<CollaborationMetrics> {
+    const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
     const apiCallCounter = { count: 0 };
 
     this.logger.log(
@@ -71,9 +74,10 @@ export class GitHubCollaborationService {
         commitShas,
         userId,
         apiCallCounter,
+        policy,
       ),
       this.getCodeOwnershipFromEvents(userId, missionEvents),
-      this.getTeamInfo(octokit, owner, repo, apiCallCounter),
+      this.getTeamInfo(octokit, owner, repo, apiCallCounter, policy),
     ]);
 
     this.logger.log(
@@ -96,6 +100,7 @@ export class GitHubCollaborationService {
     _commitShas: string[],
     _userId: string,
     apiCallCounter: { count: number },
+    policy: PlanPolicy,
   ): Promise<PullRequestReview[]> {
     const reviews: PullRequestReview[] = [];
 
@@ -107,7 +112,7 @@ export class GitHubCollaborationService {
       const { data: searchResults } =
         await octokit.rest.search.issuesAndPullRequests({
           q: `repo:${owner}/${repo} is:pr reviewed-by:${username} is:closed`,
-          per_page: 100,
+          per_page: policy.commitsPerPage,
         });
 
       for (const pr of searchResults.items) {
@@ -243,13 +248,14 @@ export class GitHubCollaborationService {
     owner: string,
     repo: string,
     apiCallCounter: { count: number },
+    policy: PlanPolicy,
   ): Promise<{ teamSize: number; contributorEmails: Set<string> }> {
     try {
       apiCallCounter.count++;
       const { data: contributors } = await octokit.rest.repos.listContributors({
         owner,
         repo,
-        per_page: 100,
+        per_page: policy.commitsPerPage,
       });
 
       const emails = new Set<string>();

@@ -19,7 +19,7 @@ type GitHubFile = GitHubCommit['files'][number];
 export class GitHubVcsProvider implements IVcsProvider {
   private readonly logger = new Logger(GitHubVcsProvider.name);
   private octokit!: Octokit;
-  private cachedUsername?: string;
+  private requestCount = 0;
 
   initialize(token: string): void {
     const IOctokit = Octokit.plugin(throttling);
@@ -61,6 +61,7 @@ export class GitHubVcsProvider implements IVcsProvider {
     repo: string,
     owner: string,
     maxCommits: number,
+    commitsPerPage: number,
   ): Promise<Set<string>> {
     const commitsShaSet = new Set<string>();
     let currentPage = 1;
@@ -68,9 +69,10 @@ export class GitHubVcsProvider implements IVcsProvider {
       const { data: commits } = await this.octokit.rest.repos.listCommits({
         owner: owner,
         repo: repo,
-        per_page: 25,
+        per_page: commitsPerPage,
         page: currentPage,
       });
+      this.requestCount++;
 
       for (const commit of commits) {
         if (commitsShaSet.size >= maxCommits) break;
@@ -170,6 +172,10 @@ export class GitHubVcsProvider implements IVcsProvider {
     for (const file of files) {
       const fileName = file.filename;
       const extension = path.extname(fileName).toLowerCase();
+
+      if (file.status === 'removed' || file.status === 'renamed') {
+        continue;
+      }
       if (!allowedExt.includes(extension)) {
         continue;
       }
@@ -185,28 +191,37 @@ export class GitHubVcsProvider implements IVcsProvider {
         continue;
       }
 
-      const { data: contentData } = await this.octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path: fileName,
-        ref: currentCommitSha,
-      });
-
-      if ('content' in contentData) {
-        const fileContent = Buffer.from(contentData.content, 'base64').toString(
-          'utf-8',
-        );
-        contents.push({
-          filename: fileName,
-          content: fileContent,
-          sha: file.sha,
-          extension,
-          changes: file.changes,
-          additions: file.additions,
-          deletions: file.deletions,
-          repository: repo,
-          message: currentCommitMessage,
+      try {
+        const { data: contentData } = await this.octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: fileName,
+          ref: currentCommitSha,
         });
+        this.requestCount++;
+
+        if ('content' in contentData) {
+          const fileContent = Buffer.from(
+            contentData.content,
+            'base64',
+          ).toString('utf-8');
+          contents.push({
+            filename: fileName,
+            content: fileContent,
+            sha: file.sha,
+            extension,
+            changes: file.changes,
+            additions: file.additions,
+            deletions: file.deletions,
+            repository: repo,
+            message: currentCommitMessage,
+          });
+        }
+      } catch (error) {
+        this.logger.debug(
+          `Skipping file ${fileName} in commit ${currentCommitSha}: ${error.message}`,
+        );
+        continue;
       }
     }
     return contents;
@@ -228,6 +243,7 @@ export class GitHubVcsProvider implements IVcsProvider {
             ref: sha,
           },
         );
+        this.requestCount++;
         const filesWithContent = await this.getFileChangesInCommit(
           repo,
           owner,
@@ -268,13 +284,16 @@ export class GitHubVcsProvider implements IVcsProvider {
     maxRepo: number;
     maxCommits: number;
     maxFilesPerCommit: number;
+    commitsPerPage: number;
+    repositoriesPerPage: number;
   }) {
     const response = await this.octokit.rest.repos.listForAuthenticatedUser({
-      per_page: options.maxRepo,
+      per_page: options.repositoriesPerPage,
       page: 1,
       affiliation: 'owner,collaborator,organization_member',
       sort: 'updated',
     });
+    this.requestCount++;
     const analyzedData: AnalyzerResults[] = [];
     const myRepos = response.data.filter(
       (repo) => !repo.disabled && !repo.archived && !repo.fork && repo.size > 0,
@@ -284,6 +303,7 @@ export class GitHubVcsProvider implements IVcsProvider {
         repo.name,
         repo.owner.login,
         options.maxCommits,
+        options.commitsPerPage,
       );
       const commitDetails = await this.getCommitDetails(
         repo.name,
@@ -297,6 +317,12 @@ export class GitHubVcsProvider implements IVcsProvider {
           owner: repo.owner.login,
           commits: commitDetails,
         });
+      }
+      this.logger.debug(
+        `Processed repository: ${repo.full_name}, Total requests made: ${this.requestCount}`,
+      );
+      if (analyzedData.length >= options.maxRepo) {
+        break;
       }
     }
     return analyzedData;
