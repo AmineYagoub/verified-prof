@@ -1,10 +1,15 @@
 'use client';
 
 import { useMissions } from '@verified-prof/web/hooks';
+import { Mission } from '@verified-prof/prisma';
 
 interface MissionTimelineProps {
   userId: string;
 }
+
+type MissionWithPatterns = Mission & {
+  patterns?: string[];
+};
 
 const getImpactBadgeClass = (impact: string) => {
   switch (impact) {
@@ -34,6 +39,24 @@ const getDomainBadgeClass = (domain: string) => {
     default:
       return 'badge-ghost';
   }
+};
+
+const getPatternColor = (pattern: string) => {
+  const colors: Record<string, string> = {
+    TDD: 'badge-success',
+    Functional: 'badge-primary',
+    OOP: 'badge-secondary',
+    REST: 'badge-info',
+    GraphQL: 'badge-accent',
+    'Event-Driven': 'badge-warning',
+    Microservices: 'badge-error',
+    Async: 'badge-primary',
+    'Type-Safe': 'badge-success',
+    SOLID: 'badge-secondary',
+    DRY: 'badge-info',
+    Modular: 'badge-accent',
+  };
+  return colors[pattern] || 'badge-ghost';
 };
 
 export const MissionTimeline = ({ userId }: MissionTimelineProps) => {
@@ -160,7 +183,7 @@ export const MissionTimeline = ({ userId }: MissionTimelineProps) => {
                       {mission.domainContext}
                     </span>
                     {mission.isHeroMission && (
-                      <span className="badge badge-sm badge-primary">
+                      <span className="badge badge-soft badge-sm badge-primary">
                         ⭐ Hero
                       </span>
                     )}
@@ -169,6 +192,22 @@ export const MissionTimeline = ({ userId }: MissionTimelineProps) => {
                   <p className="text-sm text-base-content/80 mb-3">
                     {mission.summary}
                   </p>
+
+                  {(mission as MissionWithPatterns).patterns &&
+                    (mission as MissionWithPatterns).patterns.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {(mission as MissionWithPatterns).patterns.map(
+                          (pattern: string, patIdx: number) => (
+                            <span
+                              key={patIdx}
+                              className={`badge badge-xs ${getPatternColor(pattern)} badge-outline`}
+                            >
+                              {pattern}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
 
                   {mission.achievements.length > 0 && (
                     <ul className="space-y-1">
