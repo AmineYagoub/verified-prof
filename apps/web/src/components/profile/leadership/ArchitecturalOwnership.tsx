@@ -24,6 +24,7 @@ const ArchitecturalOwnership = ({
         fontSize: 14,
       },
     },
+
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c} files ({d}%)',
@@ -36,10 +37,10 @@ const ArchitecturalOwnership = ({
     series: [
       {
         type: 'funnel',
-        left: '10%',
+        left: 'center',
         top: 100,
         bottom: 40,
-        width: '80%',
+        width: '60%',
         min: 0,
         max: 100,
         minSize: '0%',

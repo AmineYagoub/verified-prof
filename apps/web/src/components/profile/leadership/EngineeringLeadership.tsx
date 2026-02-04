@@ -68,7 +68,6 @@ export const EngineeringLeadership = ({
       </section>
     );
   }
-
   return (
     <>
       <ArchitecturalOwnership leadership={leadership} />
