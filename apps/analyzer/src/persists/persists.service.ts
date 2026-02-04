@@ -32,6 +32,14 @@ export class PersistsService {
 
     const allSummaries = missionEvents.flatMap((m) => m.summaries);
     const commitShas: string[] = [];
+    const persistedSummaries: Array<{
+      id: string;
+      repoFullName: string;
+      commitSha: string;
+      filePath: string;
+      tagSummary: unknown;
+      createdAt: Date;
+    }> = [];
     let totalFiles = 0;
     let totalComplexity = 0;
     let userId: string | null = null;
@@ -43,7 +51,7 @@ export class PersistsService {
         plan = missionEvents[0].mission_metadata.plan;
       }
       try {
-        await this.prisma.client.analysisTagSummary.upsert({
+        const persisted = await this.prisma.client.analysisTagSummary.upsert({
           where: {
             repoFullName_commitSha_filePath: {
               repoFullName: summary.repo,
@@ -63,6 +71,15 @@ export class PersistsService {
             tagSummary: JSON.parse(JSON.stringify(summary.tagSummary)),
             userId: summary.userId || null,
           },
+        });
+
+        persistedSummaries.push({
+          id: persisted.id,
+          repoFullName: persisted.repoFullName,
+          commitSha: persisted.commitSha,
+          filePath: persisted.filePath,
+          tagSummary: persisted.tagSummary,
+          createdAt: persisted.createdAt,
         });
 
         if (!commitShas.includes(summary.commitSha)) {
@@ -110,6 +127,7 @@ export class PersistsService {
       totalComplexity,
       weekStart,
       plan: plan || 'FREE',
+      tagSummaries: persistedSummaries,
       ...collaborationData,
     } as AnalysisPersistedEvent);
   }
