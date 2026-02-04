@@ -53,6 +53,7 @@ export interface Mission {
   architecturalFeat?: string;
   summary: string;
   achievements: string[];
+  patterns: string[];
   domainContext: string;
   complexityAdded: number;
   commitCount: number;

@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsArray,
   ValidateNested,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -105,4 +106,15 @@ export class AnalysisPersistedEvent {
   @IsOptional()
   @IsString()
   plan?: 'FREE' | 'PREMIUM' | 'ENTERPRISE';
+
+  @IsOptional()
+  @IsArray()
+  tagSummaries?: Array<{
+    id: string;
+    repoFullName: string;
+    commitSha: string;
+    filePath: string;
+    tagSummary: any;
+    createdAt: Date;
+  }>;
 }

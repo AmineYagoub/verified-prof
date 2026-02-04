@@ -5,17 +5,16 @@ export interface MissionGenerationRequestedEvent {
   commitContexts: Array<{
     commitSha: string;
     commitMessage: string;
-    files: Array<{
-      path: string;
-      complexity: number;
-      functions: number;
-      classes: number;
-      language: string;
-    }>;
+    commitMessages: string[];
     totalComplexity: number;
     filesChanged: number;
     date: Date;
     commitCount: number;
     duration: number;
+    languages: string[];
+    totalFunctions: number;
+    totalClasses: number;
+    topImports: string[];
+    decorators: string[];
   }>;
 }
