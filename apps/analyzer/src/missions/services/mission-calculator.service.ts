@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 type TagSummary = {
   id: string;
+  repoFullName: string;
   commitSha: string;
   filePath: string;
   complexity: number;
