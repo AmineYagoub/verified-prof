@@ -101,4 +101,8 @@ export class AnalysisPersistedEvent {
   @IsOptional()
   @IsNumber()
   teamSize?: number;
+
+  @IsOptional()
+  @IsString()
+  plan?: 'FREE' | 'PREMIUM' | 'ENTERPRISE';
 }

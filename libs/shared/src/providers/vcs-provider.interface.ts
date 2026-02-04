@@ -61,6 +61,8 @@ export interface IVcsProvider {
     maxRepo: number;
     maxCommits: number;
     maxFilesPerCommit: number;
+    commitsPerPage: number;
+    repositoriesPerPage: number;
   }): Promise<AnalyzerResults[]>;
 }
 

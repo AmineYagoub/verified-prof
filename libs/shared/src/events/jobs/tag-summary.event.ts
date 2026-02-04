@@ -67,6 +67,10 @@ export class MissionMetadata {
   @IsOptional()
   @IsString({ each: true })
   parentShas?: string[];
+
+  @IsOptional()
+  @IsString()
+  plan?: 'FREE' | 'PREMIUM' | 'ENTERPRISE';
 }
 
 export class MissionEvent {

@@ -3,46 +3,27 @@ export * from './auth';
 export * from './encrypt';
 
 export interface PlanPolicy {
-  plan: 'FREE' | 'PREMIUM';
+  plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE';
   windowDays: number;
   maxCommits: number;
   maxFilesPerCommit: number;
   maxRepositories: number;
   commitsPerPage: number;
   repositoriesPerPage: number;
-  allowSampling: boolean;
-  snapshotFrequency: 'monthly' | 'weekly';
-  aiExplanations: {
-    enabled: boolean;
-    maxCommitsForAI: number;
-    maxExplanationsPerAnalysis: number;
-  };
-  rateLimit: {
-    maxAnalysisPerDay: number;
-    maxAnalysisPerMonth: number;
-  };
 }
 
-export const PLAN_POLICIES: Record<'FREE' | 'PREMIUM', PlanPolicy> = {
+export const PLAN_POLICIES: Record<
+  'FREE' | 'PREMIUM' | 'ENTERPRISE',
+  PlanPolicy
+> = {
   FREE: {
     plan: 'FREE',
     windowDays: 90,
-    maxCommits: 10,
+    maxCommits: 1000,
     maxRepositories: 10,
     maxFilesPerCommit: 25,
-    commitsPerPage: 100,
-    repositoriesPerPage: 10,
-    allowSampling: true,
-    snapshotFrequency: 'monthly',
-    aiExplanations: {
-      enabled: true,
-      maxCommitsForAI: 20,
-      maxExplanationsPerAnalysis: 5,
-    },
-    rateLimit: {
-      maxAnalysisPerDay: 3,
-      maxAnalysisPerMonth: 30,
-    },
+    commitsPerPage: 50,
+    repositoriesPerPage: 50,
   },
   PREMIUM: {
     plan: 'PREMIUM',
@@ -50,18 +31,16 @@ export const PLAN_POLICIES: Record<'FREE' | 'PREMIUM', PlanPolicy> = {
     maxCommits: 10000,
     maxRepositories: 50,
     maxFilesPerCommit: 100,
-    commitsPerPage: 100,
+    commitsPerPage: 50,
     repositoriesPerPage: 50,
-    allowSampling: true,
-    snapshotFrequency: 'weekly',
-    aiExplanations: {
-      enabled: true,
-      maxCommitsForAI: 100,
-      maxExplanationsPerAnalysis: 20,
-    },
-    rateLimit: {
-      maxAnalysisPerDay: 20,
-      maxAnalysisPerMonth: 300,
-    },
+  },
+  ENTERPRISE: {
+    plan: 'ENTERPRISE',
+    windowDays: 730,
+    maxCommits: 50000,
+    maxRepositories: 200,
+    maxFilesPerCommit: 200,
+    commitsPerPage: 100,
+    repositoriesPerPage: 100,
   },
 };
