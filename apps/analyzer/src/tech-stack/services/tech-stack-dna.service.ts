@@ -7,6 +7,8 @@ import {
   LearningCurveTrend,
   JOB_EVENTS,
   AnalysisPersistedEvent,
+  PLAN_POLICIES,
+  PlanPolicy,
 } from '@verified-prof/shared';
 import { TechStackCalculatorService } from './tech-stack-calculator.service';
 
@@ -43,7 +45,8 @@ export class TechStackDnaService {
     }
 
     try {
-      await this.generateTechStackDNA(event.userId);
+      const plan = event.plan || 'FREE';
+      await this.generateTechStackDNA(event.userId, plan);
       this.logger.log(
         `Tech Stack DNA generated successfully for user ${event.userId}`,
       );
@@ -55,8 +58,13 @@ export class TechStackDnaService {
     }
   }
 
-  async generateTechStackDNA(userId: string): Promise<TechStackDNA> {
+  async generateTechStackDNA(
+    userId: string,
+    plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE',
+  ): Promise<TechStackDNA> {
     this.logger.log(`Generating Tech Stack DNA for user ${userId}`);
+
+    const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
 
     const userProfile = await this.prisma.client.userProfile.findUnique({
       where: { userId },
@@ -71,8 +79,16 @@ export class TechStackDnaService {
       };
     }
 
+    const windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - policy.windowDays);
+
     const analysisData = await this.prisma.client.analysisTagSummary.findMany({
-      where: { userId },
+      where: {
+        userId,
+        createdAt: {
+          gte: windowStart,
+        },
+      },
       orderBy: { createdAt: 'asc' },
       select: {
         tagSummary: true,
