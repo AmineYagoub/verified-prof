@@ -101,7 +101,7 @@ export const CoreMetricsDashboard = ({ userId }: CoreMetricsDashboardProps) => {
           />
           <MetricStat
             label="Cycle Time"
-            value={`${metrics.cycleTime.toFixed(1)}h`}
+            value={`${metrics.cycleTime.toFixed(0)}h`}
             description="First to last commit"
             icon={
               <svg
