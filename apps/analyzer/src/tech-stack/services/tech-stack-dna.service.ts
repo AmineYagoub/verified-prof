@@ -7,8 +7,6 @@ import {
   LearningCurveTrend,
   JOB_EVENTS,
   AnalysisPersistedEvent,
-  PLAN_POLICIES,
-  PlanPolicy,
 } from '@verified-prof/shared';
 import { TechStackCalculatorService } from './tech-stack-calculator.service';
 
@@ -45,8 +43,7 @@ export class TechStackDnaService {
     }
 
     try {
-      const plan = event.plan || 'FREE';
-      await this.generateTechStackDNA(event.userId, plan);
+      await this.generateTechStackDNA(event.userId, event);
       this.logger.log(
         `Tech Stack DNA generated successfully for user ${event.userId}`,
       );
@@ -60,11 +57,9 @@ export class TechStackDnaService {
 
   async generateTechStackDNA(
     userId: string,
-    plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE',
+    event?: AnalysisPersistedEvent,
   ): Promise<TechStackDNA> {
     this.logger.log(`Generating Tech Stack DNA for user ${userId}`);
-
-    const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
 
     const userProfile = await this.prisma.client.userProfile.findUnique({
       where: { userId },
@@ -79,23 +74,22 @@ export class TechStackDnaService {
       };
     }
 
-    const windowStart = new Date();
-    windowStart.setDate(windowStart.getDate() - policy.windowDays);
+    if (!event?.tagSummaries || event.tagSummaries.length === 0) {
+      this.logger.warn(
+        `No tag summaries in event for user ${userId}, skipping Tech Stack DNA generation`,
+      );
+      return {
+        languages: [],
+        learningCurveTrend: 'Steady',
+        dominantLanguages: [],
+      };
+    }
 
-    const analysisData = await this.prisma.client.analysisTagSummary.findMany({
-      where: {
-        userId,
-        createdAt: {
-          gte: windowStart,
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-      select: {
-        tagSummary: true,
-        createdAt: true,
-        filePath: true,
-      },
-    });
+    const analysisData = event.tagSummaries.map((ts) => ({
+      tagSummary: ts.tagSummary,
+      createdAt: ts.createdAt,
+      filePath: ts.filePath,
+    }));
 
     if (analysisData.length === 0) {
       this.logger.warn(`No analysis data found for user ${userId}`);
