@@ -249,18 +249,17 @@ model Mission {
   userProfileId String
   userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
 
-  week              String
   date              DateTime
   impact            MissionImpact
   title             String
   architecturalFeat String?      @db.Text
   summary           String       @db.Text
   achievements      String[]
+  patterns          String[]     @default([])
   domainContext     String
   commitCount       Int
   isHeroMission     Boolean      @default(false)
 
-  @@unique([userProfileId, week, date])
   @@index([userProfileId, date])
   @@index([userProfileId, isHeroMission])
 }
