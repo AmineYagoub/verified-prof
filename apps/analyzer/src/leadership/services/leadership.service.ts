@@ -26,12 +26,6 @@ export class LeadershipService {
     );
 
     try {
-      const plan = event.plan || 'FREE';
-      await this.architecturalLayerService.generateAndPersist(
-        event.userId,
-        plan,
-      );
-
       this.logger.log(
         `Engineering Leadership generated successfully for user ${event.userId}`,
       );
