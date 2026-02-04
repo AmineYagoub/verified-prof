@@ -174,15 +174,14 @@ model UserProfile {
   coreMetrics      CoreMetrics?
   techStackDNA     TechStackDNA?
   cognitiveStyle   CognitiveStyle?
-  mentorshipRatio  MentorshipRatio?
-  reliabilityScore ReliabilityScore?
 
   weeklyIntensities    WeeklyIntensity[]
   languageExpertises   LanguageExpertise[]
   missions             Mission[]
   cognitivePatterns    CognitivePattern[]
   mentorshipActivities MentorshipActivity[]
-  churnHotspots        ChurnHotspot[]
+  architecturalLayers  ArchitecturalLayer[]
+  effortDistributions  EffortDistribution[]
 }
 
 model CoreMetrics {
@@ -293,21 +292,6 @@ model CognitivePattern {
   @@index([userProfileId, frequency])
 }
 
-model MentorshipRatio {
-  id            String      @id @default(cuid())
-  userProfileId String      @unique
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-
-  reviewQualityScore    Float
-  knowledgeSharingIndex Float
-  topAdviceTag          String
-  mentorshipRatio       Float
-  reviewsGiven          Int
-  reviewsReceived       Int
-  topMentees            String[]
-  topMentors            String[]
-}
-
 model MentorshipActivity {
   id            String      @id @default(cuid())
   userProfileId String
@@ -324,31 +308,40 @@ model MentorshipActivity {
   @@index([userProfileId, type])
 }
 
-model ReliabilityScore {
-  id            String      @id @default(cuid())
-  userProfileId String      @unique
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-
-  codeSurvivalRate      Float
-  bugDensity            Float
-  refactorResistance    Float
-  refactorRatio         Float
-  modularityScore       Float
-  churnStabilization    Float
-  architecturalDecisions String[]
-  avgFileLifespan       Float
-}
-
-model ChurnHotspot {
+model ArchitecturalLayer {
   id            String      @id @default(cuid())
   userProfileId String
   userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
 
-  filePath     String
-  churnCount   Int
-  lastModified DateTime
-  stabilized   Boolean  @default(false)
+  layer          String
+  description    String      @db.Text
+  fileCount      Int
+  stabilityRate  Int
+  involvement    Int
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
-  @@unique([userProfileId, filePath])
-  @@index([userProfileId, stabilized])
+  @@unique([userProfileId, layer])
+  @@index([userProfileId, createdAt])
+}
+
+model EffortDistribution {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  weekStart       String
+  features        Int
+  fixes           Int
+  refactors       Int
+  tests           Int
+  documentation   Int
+  infrastructure  Int
+  performance     Int
+  security        Int
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([userProfileId, weekStart])
+  @@index([userProfileId, weekStart])
 }
