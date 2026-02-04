@@ -22,7 +22,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     <div className="drawer lg:drawer-open">
       <input id="main-drawer" type="checkbox" className="drawer-toggle" />
 
-      <main className="drawer-content flex flex-col gap-6 overflow-auto  max-w-5xl mx-auto w-full mt-12 px-4">
+      <main className="drawer-content flex flex-col gap-6 overflow-auto  max-w-5xl mx-auto w-full my-12 px-4">
         {children}
       </main>
 
