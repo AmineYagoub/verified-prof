@@ -121,32 +121,32 @@ export class LeadershipAiService {
       {
         layer: 'Infrastructure Layer',
         description: 'Deployment and DevOps automation',
-        files: [],
+        fileCount: 0,
       },
       {
         layer: 'Database Layer',
         description: 'Data persistence and schemas',
-        files: [],
+        fileCount: 0,
       },
       {
         layer: 'Backend API Layer',
         description: 'Server endpoints and routing',
-        files: [],
+        fileCount: 0,
       },
       {
         layer: 'Business Logic Layer',
         description: 'Core application logic',
-        files: [],
+        fileCount: 0,
       },
       {
         layer: 'Frontend Layer',
         description: 'Client application components',
-        files: [],
+        fileCount: 0,
       },
       {
         layer: 'UI/UX Layer',
         description: 'User interface and styling',
-        files: [],
+        fileCount: 0,
       },
     ];
   }

@@ -36,21 +36,21 @@ export class ArchitecturalLayerAiService {
 
   private async persistLayers(
     userProfileId: string,
-    layers: Array<{ layer: string; description: string; files: string[] }>,
+    layers: Array<{ layer: string; description: string; fileCount: number }>,
   ): Promise<void> {
-    const totalFiles = layers.reduce((sum, l) => sum + l.files.length, 0);
+    const totalFiles = layers.reduce((sum, l) => sum + l.fileCount, 0);
 
     await this.prisma.client.architecturalLayer.createMany({
       data: layers.map((layer) => {
         const involvement =
-          totalFiles > 0 ? (layer.files.length / totalFiles) * 100 : 0;
-        const stabilityRate = this.calculateStabilityRate(layer.files.length);
+          totalFiles > 0 ? (layer.fileCount / totalFiles) * 100 : 0;
+        const stabilityRate = this.calculateStabilityRate(layer.fileCount);
 
         return {
           userProfileId,
           layer: layer.layer,
           description: layer.description,
-          fileCount: layer.files.length,
+          fileCount: layer.fileCount,
           stabilityRate,
           involvement: Math.round(involvement),
         };

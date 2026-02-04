@@ -14,6 +14,7 @@ interface AIGeneratedMission {
   title: string;
   summary: string;
   achievements: string[];
+  patterns: string[];
   architecturalFeat: string | null;
   domainContext: string;
 }
@@ -31,26 +32,18 @@ export class MissionAiService {
   async handleMissionGenerationRequested(
     event: MissionGenerationRequestedEvent,
   ) {
-    const { userProfileId, weekStart, commitContexts } = event;
-
-    this.logger.log(
-      `Generating AI missions for ${commitContexts.length} work sessions`,
-    );
-
+    const { userProfileId, commitContexts } = event;
     const prompt = generateMissionSummaryPrompt(commitContexts);
-
     try {
       const fullPrompt = `${prompt.systemPrompt}\n\n${prompt.userPrompt}`;
       const aiMissions = await this.gemini.generateJSON<AIGeneratedMission[]>(
         fullPrompt,
         prompt.jsonSchema,
       );
-
       if (!aiMissions || aiMissions.length === 0) {
         this.logger.warn('AI returned no missions');
         return;
       }
-
       const commitContextMap = new Map(
         commitContexts.map((ctx) => [ctx.commitSha, ctx]),
       );
@@ -59,41 +52,42 @@ export class MissionAiService {
         const context = commitContextMap.get(aiMission.commitSha);
         const date = context?.date || new Date();
         const commitCount = context?.commitCount || 1;
-
         return {
-          week: weekStart,
           date,
           impact: aiMission.impact,
           title: aiMission.title,
           architecturalFeat: aiMission.architecturalFeat,
           summary: aiMission.summary,
           achievements: aiMission.achievements,
+          patterns: aiMission.patterns,
           domainContext: aiMission.domainContext,
           commitCount,
           isHeroMission: commitCount > 5 || !!aiMission.architecturalFeat,
         };
       });
 
-      for (const mission of missions) {
-        await this.prisma.client.mission.upsert({
-          where: {
-            userProfileId_week_date: {
-              userProfileId,
-              week: mission.week,
-              date: mission.date,
-            },
-          },
-          create: {
-            ...mission,
-            userProfileId,
-          },
-          update: mission,
-        });
-      }
-
       this.logger.log(
-        `Persisted ${missions.length} AI-generated missions for week ${weekStart}`,
+        `Preparing to persist ${missions.length} AI-generated missions`,
+        JSON.stringify(missions, null, 2),
       );
+
+      await this.prisma.client.mission.createMany({
+        data: missions.map((mission) => ({
+          userProfileId,
+          date: mission.date,
+          impact: mission.impact,
+          title: mission.title,
+          architecturalFeat: mission.architecturalFeat,
+          summary: mission.summary,
+          achievements: mission.achievements,
+          patterns: mission.patterns,
+          domainContext: mission.domainContext,
+          commitCount: mission.commitCount,
+          isHeroMission: mission.isHeroMission,
+        })),
+      });
+
+      this.logger.log(`Persisted ${missions.length} AI-generated missions`);
     } catch (error) {
       this.logger.error('AI mission generation failed:', error);
     }

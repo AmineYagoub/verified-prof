@@ -43,18 +43,12 @@ export class AiService {
       `Analyzing ${event.commitShas.length} commits for week ${weekStart}`,
     );
 
-    const tagSummaries = await this.prisma.client.analysisTagSummary.findMany({
-      where: {
-        commitSha: { in: event.commitShas },
-      },
-      select: {
-        tagSummary: true,
-        filePath: true,
-        commitSha: true,
-      },
-    });
+    if (!event.tagSummaries || event.tagSummaries.length === 0) {
+      this.logger.warn('No tag summaries in event, skipping analysis');
+      return;
+    }
 
-    const weeklyTags = tagSummaries.map(
+    const weeklyTags = event.tagSummaries.map(
       (t) => t.tagSummary as unknown as TagSummary,
     );
 

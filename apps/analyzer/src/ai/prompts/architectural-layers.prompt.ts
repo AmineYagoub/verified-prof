@@ -7,7 +7,7 @@ export interface FileWithMetadata {
 export interface ArchitecturalLayerResult {
   layer: string;
   description: string;
-  files: string[];
+  fileCount: number;
 }
 
 export const createArchitecturalLayersPrompt = (
@@ -32,12 +32,12 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no explan
   {
     "layer": "Infrastructure Layer",
     "description": "CI/CD pipelines and deployment automation",
-    "files": ["docker-compose.yml", ".github/workflows/ci.yml"]
+    "fileCount": 5
   },
   {
     "layer": "Database Layer", 
     "description": "Database schema and migrations",
-    "files": ["prisma/schema.prisma", "migrations/001_init.sql"]
+    "fileCount": 12
   }
 ]
 
@@ -46,7 +46,8 @@ Rules:
 - Each file must belong to exactly ONE layer
 - Order layers from infrastructure (bottom of stack) to UI (top of stack)
 - Description should be 5-10 words explaining what this layer does
-- If a layer has no files, set files to empty array but include the layer
+- If a layer has no files, set fileCount to 0 but include the layer
+- Return fileCount as the number of files in each layer, not the file paths
 - Group semantically: "frontend/", "ui/", "components/" all go to Frontend or UI layer
 - "services/", "controllers/", "api/" belong to Backend or Business Logic
 

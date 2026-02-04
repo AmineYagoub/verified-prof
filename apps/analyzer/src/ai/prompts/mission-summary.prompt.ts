@@ -1,18 +1,17 @@
 interface CommitContext {
   commitSha: string;
   commitMessage: string;
-  files: Array<{
-    path: string;
-    complexity: number;
-    functions: number;
-    classes: number;
-    language: string;
-  }>;
+  commitMessages: string[];
   totalComplexity: number;
   filesChanged: number;
   date: Date;
   commitCount?: number;
   duration?: number;
+  languages: string[];
+  totalFunctions: number;
+  totalClasses: number;
+  topImports: string[];
+  decorators: string[];
 }
 
 export const generateMissionSummaryPrompt = (commits: CommitContext[]) => {
@@ -22,80 +21,136 @@ export const generateMissionSummaryPrompt = (commits: CommitContext[]) => {
         ? `${Math.round(c.duration / (60 * 60 * 1000))}h ${Math.round((c.duration % (60 * 60 * 1000)) / (60 * 1000))}m`
         : 'N/A';
       return `
-## Work Session: ${c.commitMessage}
+## Work Session
 - Date: ${c.date.toISOString()}
 - Commits: ${c.commitCount || 1}
 - Duration: ${duration}
-- Files: ${c.filesChanged}
+- Files Changed: ${c.filesChanged}
 - Total Complexity: ${c.totalComplexity}
-- Languages: ${[...new Set(c.files.map((f) => f.language))].join(', ')}
-- Functions: ${c.files.reduce((sum, f) => sum + f.functions, 0)}
-- Classes: ${c.files.reduce((sum, f) => sum + f.classes, 0)}
+- Languages: ${c.languages.join(', ')}
+- Functions Written: ${c.totalFunctions}
+- Classes Created: ${c.totalClasses}
+- Top Libraries/Frameworks: ${c.topImports.join(', ')}
+${c.decorators.length > 0 ? `- Decorators Used: ${c.decorators.join(', ')}` : ''}
 
-File Changes:
-${c.files.map((f) => `  - ${f.path} (${f.language}, complexity: ${f.complexity})`).join('\n')}
+Commit Messages:
+${c.commitMessages.map((msg, i) => `${i + 1}. ${msg}`).join('\n')}
 `;
     })
     .join('\n---\n');
 
   return {
-    systemPrompt: `You are an expert engineering storyteller. Analyze commit data and generate compelling mission narratives that showcase developer achievements for recruiters and hiring managers.
+    systemPrompt: `You are a technical recruiter analyzing developer work. Your job is to extract CONCRETE, SPECIFIC technical achievements from commit data that will impress hiring managers.
 
-Your goal is to transform technical commits into engaging stories that highlight:
-- Real-world impact and business value
-- Technical depth and architectural decisions
-- Problem-solving and innovation
-- Code quality and engineering practices`,
+CRITICAL RULES:
+1. Use ACTUAL technology names from the Languages field (TypeScript, React, PostgreSQL, etc.)
+2. Extract specific features/problems from commit messages - don't make up generic stories
+3. Use NUMBERS and METRICS when available (files changed, functions written, complexity)
+4. NEVER use buzzwords: "scalable", "robust", "resilient", "sophisticated", "comprehensive", "engineered", "architected"
+5. Focus on WHAT was actually built, not how "amazing" it was
+6. Be HONEST - if commits show refactoring, say refactoring, not "transformative innovation"
+
+AVOID:
+❌ "Engineered a scalable core service"
+❌ "Architected robust data layer"
+❌ "Implemented sophisticated algorithms"
+❌ "Delivered comprehensive solutions"
+
+PREFER:
+✅ "Built user authentication with JWT and Redis session storage"
+✅ "Refactored API validation layer covering 52 endpoints"
+✅ "Created React dashboard with 15 charts using D3.js"
+✅ "Migrated database schema affecting 20 tables"`,
 
     userPrompt: `
-# Mission Analysis Task
+# Developer Work Analysis
 
-Analyze the following ${commits.length} work sessions and generate mission summaries that will impress recruiters.
-Each session represents 4+ commits made within an 8-hour workday, showing sustained development effort.
+Analyze these ${commits.length} work sessions. Each session represents related commits from the developer's actual work.
 
 ${commitSummaries}
 
-## Instructions
+## Your Task
 
-For each work session, generate:
-1. **impact**: Classify as "Infrastructure", "Feature", "Refactor", or "Fix"
-2. **title**: A compelling one-line summary (60 chars max)
-3. **summary**: A detailed 2-3 sentence narrative explaining what was built and why it matters
-4. **achievements**: Array of 2-4 specific accomplishments (e.g., "Built RESTful API with 12 endpoints", "Implemented caching layer reducing latency by 40%")
-5. **architecturalFeat**: If complexity > 100 OR cross-language work OR significant architectural decision, describe it (null otherwise)
-6. **domainContext**: Categorize as "Backend", "Frontend", "DevOps", "Testing", or "General"
+For EACH work session, analyze the commit messages to understand what was ACTUALLY built, then generate:
 
-## Output Format
+1. **impact**: Based on commit messages:
+   - "Feature" - new functionality (feat:, add, create, implement)
+   - "Refactor" - code improvement (refactor:, cleanup, reorganize)
+   - "Fix" - bug fixes (fix:, bug:, hotfix:)
+   - "Infrastructure" - tooling, CI/CD, deployment
 
-Return valid JSON array matching this schema:
+2. **title**: 8-12 words describing the actual feature/change
+   - Extract from commit messages what was built
+   - Use actual technology names from Languages field
+   - Example: "Built REST API for user management with PostgreSQL"
+   - NOT: "Developed scalable backend infrastructure"
 
-\`\`\`json
-[
-  {
-    "commitSha": "abc123...",
-    "impact": "Feature" | "Fix" | "Refactor" | "Infrastructure",
-    "title": "Implemented JWT authentication system",
-    "summary": "Built comprehensive authentication layer using JSON Web Tokens with refresh token rotation and role-based access control. Integrated Passport.js middleware across all API routes with Redis session storage for horizontal scalability.",
-    "achievements": [
-      "Designed secure token refresh mechanism with automatic rotation",
-      "Implemented role-based authorization for 15+ API endpoints",
-      "Added Redis caching reducing auth latency by 60%"
-    ],
-    "architecturalFeat": "Architected stateless authentication system supporting 10K concurrent users with sub-100ms token validation",
-    "domainContext": "Backend"
-  }
-]
-\`\`\`
+3. **summary**: 2-3 sentences explaining:
+   - What specific feature/system was built (be concrete!)
+   - What technologies were used (from Languages field)
+   - Why it matters (business value, performance, user impact)
+   - Use commit messages as your primary source of truth
 
-## Quality Guidelines
+4. **achievements**: 2-4 bullet points with SPECIFIC details:
+   - Include numbers: "Updated 52 API endpoints", "Created 28 React components"
+   - Name technologies: "Integrated Stripe payment API", "Set up Redis caching"
+   - Show impact: "Reduced API latency from 500ms to 80ms"
+   - Extract from: filesChanged count, totalFunctions count, totalClasses count, commit messages
 
-- **Be specific**: Use numbers, technologies, and concrete outcomes
-- **Show impact**: Explain business value, not just technical details
-- **Be honest**: Don't exaggerate, but highlight real achievements
-- **Use active voice**: "Built", "Implemented", "Architected", not "Added code for"
-- **Focus on results**: What problem did this solve? What does it enable?
+5. **patterns**: 1-4 actual coding patterns (NOT generic OOP/SOLID unless clearly evident):
+   - Look at Languages field for clues
+   - React/Vue = Frontend, express/fastapi = REST, socket.io = Event-Driven
+   - TypeScript files = Type-Safe
+   - Many classes = OOP, many functions = Functional
+   - Examples: "REST", "GraphQL", "Event-Driven", "TDD", "Microservices", "Type-Safe"
 
-Generate the mission summaries now.
+6. **architecturalFeat**: Only if complexity > 500 OR 5+ languages OR 100+ files:
+   - Describe the actual system design/architecture
+   - Use specific terms: "API Gateway routing to 5 microservices"
+   - Otherwise: null
+
+7. **domainContext**: 
+   - Frontend: React, Vue, Angular, Svelte, UI components
+   - Backend: API, database, server logic, authentication
+   - DevOps: Docker, CI/CD, deployment, monitoring
+   - Testing: test files, QA, e2e
+
+## Critical Instructions
+
+- READ THE COMMIT MESSAGES CAREFULLY - they contain the actual work done
+- Use EXACT language names from Languages field
+- Convert metrics to achievements: ${commits[0]?.filesChanged} files → "Modified ${commits[0]?.filesChanged} files across codebase"
+- If commit says "add user auth" → title should be about user authentication
+- If commit says "refactor API" → don't call it a "feature", call it "Refactor"
+- NO GENERIC CORPORATE SPEAK - write like a developer explaining their work to another developer
+
+## Examples of Good Responses
+
+Example 1 (Feature):
+{
+  "title": "Built user authentication system with JWT and Redis",
+  "summary": "Implemented secure authentication flow using JSON Web Tokens with Redis-based session management. Added login, registration, and password reset endpoints with email verification.",
+  "achievements": [
+    "Created 8 API endpoints for auth flows with TypeScript and Express",
+    "Integrated Redis for session storage supporting 10K concurrent users",
+    "Implemented JWT token refresh mechanism with 15-minute access tokens"
+  ],
+  "patterns": ["REST", "Type-Safe", "Event-Driven"]
+}
+
+Example 2 (Refactor):
+{
+  "title": "Refactored API validation layer covering 52 endpoints",
+  "summary": "Standardized input validation across all API endpoints using Zod schemas. Replaced scattered validation logic with centralized middleware, reducing code duplication by 40%.",
+  "achievements": [
+    "Created 52 Zod validation schemas for TypeScript API routes",
+    "Reduced validation code from 1,200 to 720 lines",
+    "Added comprehensive error messages for all validation failures"
+  ],
+  "patterns": ["Type-Safe", "DRY", "REST"]
+}
+
+Generate mission summaries now following these exact guidelines.
 `,
 
     jsonSchema: {
@@ -108,6 +163,7 @@ Generate the mission summaries now.
           'title',
           'summary',
           'achievements',
+          'patterns',
           'architecturalFeat',
           'domainContext',
         ],
@@ -124,6 +180,12 @@ Generate the mission summaries now.
             items: { type: 'string' },
             minItems: 2,
             maxItems: 5,
+          },
+          patterns: {
+            type: 'array',
+            items: { type: 'string' },
+            minItems: 1,
+            maxItems: 4,
           },
           architecturalFeat: { type: ['string', 'null'] },
           domainContext: {
