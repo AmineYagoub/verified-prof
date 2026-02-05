@@ -54,4 +54,30 @@ export class ProfileService {
       image: profile?.image || null,
     };
   }
+
+  async getUserBySlug(slug: string) {
+    return this.prisma.client.user.findFirst({
+      where: {
+        OR: [{ id: slug }, { name: slug }],
+      },
+    });
+  }
+
+  async saveConversation(data: {
+    userId: string;
+    transcript: string;
+    duration: number;
+    startedAt: Date;
+    endedAt: Date;
+  }) {
+    return this.prisma.client.twinConversation.create({
+      data: {
+        userId: data.userId,
+        transcript: data.transcript,
+        duration: data.duration,
+        startedAt: data.startedAt,
+        endedAt: data.endedAt,
+      },
+    });
+  }
 }

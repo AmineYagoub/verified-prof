@@ -14,6 +14,14 @@ export interface GeminiGenerateOptions {
   responseSchema?: Record<string, unknown>;
 }
 
+export interface EphemeralTokenConfig {
+  systemInstruction: string;
+  temperature?: number;
+  model?: string;
+  voiceName?: string;
+  thinkingBudget?: number;
+}
+
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
@@ -84,5 +92,66 @@ export class GeminiService {
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
+  }
+
+  async createEphemeralToken(
+    config: EphemeralTokenConfig,
+  ): Promise<{ token: string; expiresAt: string }> {
+    try {
+      const now = new Date();
+      const expireTime = new Date(now.getTime() + 30 * 60 * 1000);
+      const newSessionExpireTime = new Date(now.getTime() + 1 * 60 * 1000);
+
+      const client = new GoogleGenAI({
+        apiKey: this.config.gcp.studioAiKey,
+      });
+
+      const token = await client.authTokens.create({
+        config: {
+          uses: 1,
+          expireTime: expireTime.toISOString(),
+          newSessionExpireTime: newSessionExpireTime.toISOString(),
+          liveConnectConstraints: {
+            model:
+              config.model || 'gemini-2.5-flash-native-audio-preview-12-2025',
+            config: {
+              systemInstruction: {
+                parts: [{ text: config.systemInstruction }],
+              },
+              responseModalities: ['audio'] as never,
+              temperature: config.temperature || 0.7,
+              outputAudioTranscription: {},
+              inputAudioTranscription: {},
+              thinkingConfig: {
+                thinkingBudget: config.thinkingBudget || 2048,
+                includeThoughts: true,
+              },
+              speechConfig: config.voiceName
+                ? {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: { voiceName: config.voiceName },
+                    },
+                  }
+                : undefined,
+            },
+          },
+          httpOptions: {
+            apiVersion: 'v1alpha',
+          },
+        },
+      });
+
+      this.logger.debug(
+        `Created ephemeral token expiring at ${expireTime.toISOString()}`,
+      );
+
+      return {
+        token: token.name,
+        expiresAt: expireTime.toISOString(),
+      };
+    } catch (error) {
+      this.logger.error('Failed to create ephemeral token', error);
+      throw error;
+    }
   }
 }

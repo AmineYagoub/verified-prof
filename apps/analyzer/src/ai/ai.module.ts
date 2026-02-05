@@ -15,6 +15,6 @@ import { ArchitecturalLayerAiService } from './architectural-layer-ai.service';
     LeadershipAiService,
     ArchitecturalLayerAiService,
   ],
-  exports: [AiService, LeadershipAiService],
+  exports: [AiService, GeminiService, LeadershipAiService],
 })
 export class AiModule {}

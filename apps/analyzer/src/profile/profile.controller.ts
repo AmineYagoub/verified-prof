@@ -11,10 +11,18 @@ import {
   Delete,
 } from '@nestjs/common';
 import { ProfileService } from './profile.service';
-import { auth, CoreMetricsApiResponse } from '@verified-prof/shared';
+import {
+  auth,
+  CoreMetricsApiResponse,
+  UserProfileResponse,
+} from '@verified-prof/shared';
 import { ProfileAvatarService } from './avatar.service';
+import { ProfileAggregatorService } from './profile-aggregator.service';
+import { ContextBuilderService } from './context-builder.service';
+import { GeminiService } from '../ai/gemini-client.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Session, UserSession } from '@thallesp/nestjs-better-auth';
+import { OptionalAuth } from '@thallesp/nestjs-better-auth';
 
 @Controller('profile')
 export class ProfileController {
@@ -23,9 +31,13 @@ export class ProfileController {
   constructor(
     private readonly profileService: ProfileService,
     private readonly avatarService: ProfileAvatarService,
+    private readonly aggregatorService: ProfileAggregatorService,
+    private readonly contextBuilder: ContextBuilderService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   @Get(':userId/core-metrics')
+  @OptionalAuth()
   async getCoreMetrics(
     @Param('userId') userId: string,
   ): Promise<CoreMetricsApiResponse> {
@@ -35,6 +47,76 @@ export class ProfileController {
   @Get('me')
   async getCurrentUserProfile(@Session() session: UserSession) {
     return await this.profileService.getProfileByUserId(session.user.id);
+  }
+
+  @Get(':slug')
+  @OptionalAuth()
+  async getPublicProfile(
+    @Param('slug') slug: string,
+  ): Promise<UserProfileResponse> {
+    return await this.aggregatorService.getFullProfile(slug);
+  }
+
+  @Get(':slug/twin-token')
+  @OptionalAuth()
+  async getVoiceTwinToken(@Param('slug') slug: string) {
+    const profile = await this.aggregatorService.getFullProfile(slug);
+    const context = this.contextBuilder.buildVoiceTwinContext(profile);
+
+    const voiceName = this.selectVoiceForProfile(profile);
+
+    const tokenData = await this.geminiService.createEphemeralToken({
+      systemInstruction: context,
+      temperature: 0.7,
+      voiceName,
+      thinkingBudget: 2048,
+    });
+
+    this.logger.log(
+      `Created voice twin token for profile: ${slug}, voice: ${voiceName}, expires at: ${tokenData.expiresAt}`,
+    );
+
+    return { ...tokenData, voiceName, sessionDurationMinutes: 15 };
+  }
+
+  @Post(':slug/twin-conversation')
+  @OptionalAuth()
+  async saveConversation(
+    @Param('slug') slug: string,
+    @Req() req: Request & { body: { transcript: any[]; duration: number } },
+  ) {
+    const { transcript, duration } = req.body;
+
+    const user = await this.profileService.getUserBySlug(slug);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const transcriptText = transcript
+      .map((entry) => `[${entry.speaker}]: ${entry.text}`)
+      .join('\n\n');
+
+    await this.profileService.saveConversation({
+      userId: user.id,
+      transcript: transcriptText,
+      duration,
+      startedAt: new Date(Date.now() - duration * 1000),
+      endedAt: new Date(),
+    });
+
+    this.logger.log(
+      `Saved voice twin conversation for ${slug}: ${duration}s, ${transcript.length} messages`,
+    );
+
+    return { success: true };
+  }
+
+  private selectVoiceForProfile(profile: UserProfileResponse): string {
+    const seniority = profile.coreMetrics?.seniorityRank;
+    if (seniority === 'Principal' || seniority === 'Staff') return 'Puck';
+    if (seniority === 'Senior') return 'Kore';
+    if (seniority === 'Mid') return 'Charon';
+    return 'Aoede';
   }
 
   @Post('avatar')
