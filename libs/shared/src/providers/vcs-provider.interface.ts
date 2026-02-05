@@ -18,6 +18,7 @@ export interface CommitsContent {
   extension: string;
   content: string;
   sha: string;
+  fileType?: 'code' | 'config' | 'infrastructure'; // For tech detection processing
 }
 
 export interface CommitDetails {
