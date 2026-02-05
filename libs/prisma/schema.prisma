@@ -21,6 +21,7 @@ model User {
   providerConnections  ProviderConnection[]
   analysisTagSummaries AnalysisTagSummary[]
   userProfile          UserProfile?
+  twinConversations    TwinConversation[]
 }
 
 model Account {
@@ -344,3 +345,18 @@ model EffortDistribution {
   @@unique([userProfileId, weekStart])
   @@index([userProfileId, weekStart])
 }
+
+model TwinConversation {
+  id           String   @id @default(cuid())
+  userId       String
+  transcript   String   @db.Text
+  duration     Int
+  startedAt    DateTime @default(now())
+  endedAt      DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
