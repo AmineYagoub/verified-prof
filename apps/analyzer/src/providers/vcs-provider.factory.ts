@@ -1,10 +1,7 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { Cache } from 'cache-manager';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
-import { createHash } from 'crypto';
 import {
   IVcsProvider,
   IVcsProviderFactory,
@@ -12,19 +9,30 @@ import {
   VcsProviderType,
   decrypt,
 } from '@verified-prof/shared';
+import { Cache } from 'cache-manager';
 import { GitHubVcsProvider } from './github/github-vcs.provider';
-import { APP_CONFIG_REGISTER_KEY, AppConfigType } from '@verified-prof/config';
 
 @Injectable()
 export class VcsProviderFactory implements IVcsProviderFactory {
   private readonly logger = new Logger(VcsProviderFactory.name);
+  private readonly MAX_CACHED_PROVIDERS = 100;
   private providers: Map<string, IVcsProvider> = new Map();
 
   constructor(
-    private configService: ConfigService,
     private prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
+
+  /**
+   * LRU-style cache set with eviction when max size is reached
+   */
+  private cacheSetProvider(key: string, provider: IVcsProvider): void {
+    if (this.providers.size >= this.MAX_CACHED_PROVIDERS) {
+      const firstKey = this.providers.keys().next().value;
+      this.providers.delete(firstKey);
+    }
+    this.providers.set(key, provider);
+  }
 
   /**
    * Create provider for authenticated user
@@ -32,7 +40,7 @@ export class VcsProviderFactory implements IVcsProviderFactory {
    */
   async createProviderForUser(
     userId: string,
-    type: VcsProviderType = VcsProviderType.GITHUB,
+    type: VcsProviderType,
   ): Promise<IVcsProvider> {
     const cacheKey = `${type}:${userId}`;
     const cached = this.providers.get(cacheKey);
@@ -42,41 +50,9 @@ export class VcsProviderFactory implements IVcsProviderFactory {
 
     const token = await this.getUserToken(userId, type);
     const provider = await this.createProviderByType(type, token);
-    this.providers.set(cacheKey, provider);
+    this.cacheSetProvider(cacheKey, provider);
 
     return provider;
-  }
-
-  /**
-   * Create provider with explicit token (for testing/admin)
-   */
-  async createProvider(
-    type: VcsProviderType,
-    token: string,
-  ): Promise<IVcsProvider> {
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    const cacheKey = `${type}:token:${tokenHash.substring(0, 10)}`;
-    const cached = this.providers.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    const provider = await this.createProviderByType(type, token);
-    this.providers.set(cacheKey, provider);
-
-    return provider;
-  }
-
-  async createGitHubProvider(token: string): Promise<IVcsProvider> {
-    return this.createProvider(VcsProviderType.GITHUB, token);
-  }
-
-  async createGitLabProvider(): Promise<IVcsProvider> {
-    throw new Error('GitLab provider not yet implemented');
-  }
-
-  async createBitbucketProvider(): Promise<IVcsProvider> {
-    throw new Error('Bitbucket provider not yet implemented');
   }
 
   private async createProviderByType(
@@ -128,19 +104,6 @@ export class VcsProviderFactory implements IVcsProviderFactory {
     return token;
   }
 
-  async getDefaultProvider(userId: string): Promise<IVcsProvider> {
-    const appConfig = this.configService.get<AppConfigType>(
-      APP_CONFIG_REGISTER_KEY,
-    );
-    const providerType =
-      (appConfig.app.vcsProvider as VcsProviderType) || VcsProviderType.GITHUB;
-    const token = await this.getUserToken(userId, providerType);
-    if (!token) {
-      throw new Error(`No token configured for ${providerType}`);
-    }
-    return this.createProvider(providerType, token);
-  }
-
   async clearProviderCacheForUser(
     userId: string,
     type?: VcsProviderType | string,
@@ -165,19 +128,8 @@ export class VcsProviderFactory implements IVcsProviderFactory {
     }
   }
 
-  /**
-   * Get provider for user's repository
-   * Fetches user's token from database
-   */
   @OnEvent(JOB_EVENTS.ACCOUNT_UPDATED)
   async handleAccountUpdated(payload: { userId: string; providerId?: string }) {
     await this.clearProviderCacheForUser(payload.userId, payload.providerId);
-  }
-
-  async getProviderForUser(
-    userId: string,
-    type: VcsProviderType = VcsProviderType.GITHUB,
-  ): Promise<IVcsProvider> {
-    return this.createProviderForUser(userId, type);
   }
 }

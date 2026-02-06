@@ -1,15 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Octokit } from '@octokit/rest';
-import { PLAN_POLICIES, PlanPolicy } from '@verified-prof/shared';
-
-export interface PullRequestReview {
-  commitSha: string;
-  prNumber: number;
-  reviewedAt: Date;
-  commentsCount: number;
-  changesRequested: boolean;
-  approved: boolean;
-}
+import { Injectable } from '@nestjs/common';
+import { IVcsProvider, PullRequestReview } from '@verified-prof/shared';
 
 export interface CodeOwnership {
   filePath: string;
@@ -20,36 +10,18 @@ export interface CodeOwnership {
   lastTouchedAt: Date;
 }
 
-export interface CommitMetadata {
-  sha: string;
-  message: string;
-  authorDate: Date;
-  authorEmail: string;
-  authorName: string;
-  additions: number;
-  deletions: number;
-  filesChanged: number;
-  parentShas: string[];
-}
-
 export interface CollaborationMetrics {
   pullRequestReviews: PullRequestReview[];
   codeOwnership: Map<string, CodeOwnership>;
-  commitMetadata: CommitMetadata[];
   teamSize: number;
-  contributorEmails: Set<string>;
 }
 
 @Injectable()
 export class GitHubCollaborationService {
-  private readonly logger = new Logger(GitHubCollaborationService.name);
-
   async extractCollaborationMetrics(
-    octokit: Octokit,
+    provider: IVcsProvider,
     owner: string,
     repo: string,
-    commitShas: string[],
-    userId: string,
     missionEvents: Array<{
       commitAuthor?: { email: string; name: string; date: string };
       summaries: Array<{
@@ -57,106 +29,20 @@ export class GitHubCollaborationService {
         fileStats?: { additions: number; deletions: number; changes: number };
       }>;
     }>,
-    plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE',
   ): Promise<CollaborationMetrics> {
-    const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
-    const apiCallCounter = { count: 0 };
-
-    this.logger.log(
-      `Starting collaboration extraction for ${owner}/${repo} with ${commitShas.length} commits`,
-    );
-
     const [prReviews, ownership, teamInfo] = await Promise.all([
-      this.getPullRequestReviews(
-        octokit,
-        owner,
-        repo,
-        commitShas,
-        userId,
-        apiCallCounter,
-        policy,
-      ),
-      this.getCodeOwnershipFromEvents(userId, missionEvents),
-      this.getTeamInfo(octokit, owner, repo, apiCallCounter, policy),
+      provider.getCollaborationData(repo, owner),
+      this.getCodeOwnershipFromEvents(missionEvents),
+      provider.getContributors(repo, owner),
     ]);
-
-    this.logger.log(
-      `Collaboration extraction complete. Total GitHub API calls: ${apiCallCounter.count}`,
-    );
-
     return {
       pullRequestReviews: prReviews,
       codeOwnership: ownership,
-      commitMetadata: [],
       teamSize: teamInfo.teamSize,
-      contributorEmails: teamInfo.contributorEmails,
     };
   }
 
-  private async getPullRequestReviews(
-    octokit: Octokit,
-    owner: string,
-    repo: string,
-    _commitShas: string[],
-    _userId: string,
-    apiCallCounter: { count: number },
-    policy: PlanPolicy,
-  ): Promise<PullRequestReview[]> {
-    const reviews: PullRequestReview[] = [];
-
-    try {
-      apiCallCounter.count++;
-      const { data: user } = await octokit.rest.users.getAuthenticated();
-      const username = user.login;
-
-      const { data: searchResults } =
-        await octokit.rest.search.issuesAndPullRequests({
-          q: `repo:${owner}/${repo} is:pr reviewed-by:${username} is:closed`,
-          per_page: policy.commitsPerPage,
-        });
-
-      for (const pr of searchResults.items) {
-        try {
-          const { data: prReviews } = await octokit.rest.pulls.listReviews({
-            owner,
-            repo,
-            pull_number: pr.number,
-          });
-
-          const userReviews = prReviews.filter(
-            (r) => r.user?.login === username,
-          );
-
-          for (const review of userReviews) {
-            if (!review.submitted_at) continue;
-
-            reviews.push({
-              commitSha: review.commit_id,
-              prNumber: pr.number,
-              reviewedAt: new Date(review.submitted_at),
-              commentsCount: (review as { _links?: { html: { href: string } } })
-                ?._links
-                ? 1
-                : 0,
-              changesRequested: review.state === 'CHANGES_REQUESTED',
-              approved: review.state === 'APPROVED',
-            });
-          }
-        } catch (error) {
-          this.logger.warn(
-            `Failed to fetch reviews for PR #${pr.number}: ${(error as Error).message}`,
-          );
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Failed to fetch PR reviews: ${error.message}`);
-    }
-
-    return reviews;
-  }
-
   private getCodeOwnershipFromEvents(
-    userId: string,
     missionEvents: Array<{
       commitAuthor?: { email: string; name: string; date: string };
       summaries: Array<{
@@ -178,11 +64,10 @@ export class GitHubCollaborationService {
     >();
 
     for (const mission of missionEvents) {
-      const isAuthorCommit = mission.commitAuthor !== undefined;
-      const commitDate = mission.commitAuthor?.date
-        ? new Date(mission.commitAuthor.date)
-        : new Date();
-
+      if (!mission.commitAuthor?.date) {
+        continue;
+      }
+      const commitDate = new Date(mission.commitAuthor.date);
       for (const summary of mission.summaries) {
         const filePath = summary.filePath;
         const linesChanged =
@@ -192,19 +77,17 @@ export class GitHubCollaborationService {
 
         if (!existing) {
           fileTouches.set(filePath, {
-            authorTouches: isAuthorCommit ? 1 : 0,
+            authorTouches: 1,
             totalTouches: 1,
-            authorLinesChanged: isAuthorCommit ? linesChanged : 0,
+            authorLinesChanged: linesChanged,
             totalLinesChanged: linesChanged,
             dates: [commitDate],
           });
         } else {
           existing.totalTouches++;
           existing.totalLinesChanged += linesChanged;
-          if (isAuthorCommit) {
-            existing.authorTouches++;
-            existing.authorLinesChanged += linesChanged;
-          }
+          existing.authorTouches++;
+          existing.authorLinesChanged += linesChanged;
           existing.dates.push(commitDate);
         }
       }
@@ -212,11 +95,9 @@ export class GitHubCollaborationService {
 
     for (const [filePath, touches] of fileTouches.entries()) {
       if (touches.totalTouches === 0) continue;
-
       const sortedDates = touches.dates.sort(
         (a, b) => a.getTime() - b.getTime(),
       );
-
       const touchBasedOwnership =
         (touches.authorTouches / touches.totalTouches) * 100;
       const lineBasedOwnership =
@@ -225,61 +106,15 @@ export class GitHubCollaborationService {
           : touchBasedOwnership;
 
       const weightedOwnership = (touchBasedOwnership + lineBasedOwnership) / 2;
-
       ownershipMap.set(filePath, {
         filePath,
         totalCommits: touches.totalTouches,
         authorCommits: touches.authorTouches,
         ownershipPercentage: weightedOwnership,
-        firstTouchedAt: sortedDates[0],
-        lastTouchedAt: sortedDates[sortedDates.length - 1],
+        firstTouchedAt: sortedDates[0] ?? new Date(),
+        lastTouchedAt: sortedDates[sortedDates.length - 1] ?? new Date(),
       });
     }
-
-    this.logger.log(
-      `Calculated ownership for ${ownershipMap.size} files from event data (0 API calls, weighted by lines changed)`,
-    );
-
     return ownershipMap;
-  }
-
-  private async getTeamInfo(
-    octokit: Octokit,
-    owner: string,
-    repo: string,
-    apiCallCounter: { count: number },
-    policy: PlanPolicy,
-  ): Promise<{ teamSize: number; contributorEmails: Set<string> }> {
-    try {
-      apiCallCounter.count++;
-      const { data: contributors } = await octokit.rest.repos.listContributors({
-        owner,
-        repo,
-        per_page: policy.commitsPerPage,
-      });
-
-      const emails = new Set<string>();
-      for (const contributor of contributors) {
-        try {
-          apiCallCounter.count++;
-          const { data: user } = await octokit.rest.users.getByUsername({
-            username: contributor.login,
-          });
-          if (user.email) {
-            emails.add(user.email);
-          }
-        } catch {
-          this.logger.debug(`Could not fetch email for ${contributor.login}`);
-        }
-      }
-
-      return {
-        teamSize: contributors.length,
-        contributorEmails: emails,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get team info: ${error.message}`);
-      return { teamSize: 1, contributorEmails: new Set() };
-    }
   }
 }

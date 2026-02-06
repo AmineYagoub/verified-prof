@@ -6,6 +6,7 @@ import {
   CommitDetails,
   CommitsContent,
   IVcsProvider,
+  PullRequestReview,
   VcsProviderType,
 } from '@verified-prof/shared';
 import path from 'path';
@@ -123,6 +124,11 @@ export class GitHubVcsProvider implements IVcsProvider {
     '.woff2',
     '.ttf',
     '.eot',
+    '.toml',
+    '.xml',
+    '.ini',
+    '.cfg',
+    '.conf',
   ];
 
   private static readonly EXCLUDE_DIRS: readonly string[] = [
@@ -165,6 +171,9 @@ export class GitHubVcsProvider implements IVcsProvider {
     '.idea',
     '.DS_Store',
   ];
+
+  private static readonly EXCLUDE_DIR_PATTERNS =
+    GitHubVcsProvider.EXCLUDE_DIRS.map((dir) => new RegExp(`(^|/)${dir}(/|$)`));
 
   initialize(token: string): void {
     const IOctokit = Octokit.plugin(throttling);
@@ -237,13 +246,10 @@ export class GitHubVcsProvider implements IVcsProvider {
     return commitsShaSet;
   }
 
-  private async getFileChangesInCommit(
+  private getFileChangesInCommit(
     repo: string,
-    owner: string,
     files: GitHubFile[],
-    currentCommitSha: string,
-    currentCommitMessage: string,
-  ): Promise<CommitsContent[]> {
+  ): CommitsContent[] {
     const contents: CommitsContent[] = [];
 
     for (const file of files) {
@@ -254,10 +260,9 @@ export class GitHubVcsProvider implements IVcsProvider {
         continue;
       }
       if (
-        GitHubVcsProvider.EXCLUDE_DIRS.some((dir) => {
-          const pattern = new RegExp(`(^|/)${dir}(/|$)`);
-          return pattern.test(fileName);
-        })
+        GitHubVcsProvider.EXCLUDE_DIR_PATTERNS.some((pattern) =>
+          pattern.test(fileName),
+        )
       ) {
         continue;
       }
@@ -273,46 +278,28 @@ export class GitHubVcsProvider implements IVcsProvider {
       if (!isCodeFile && !isConfigFile && !isInfrastructureFile) {
         continue;
       }
-
-      try {
-        const { data: contentData } = await this.octokit.rest.repos.getContent({
-          owner,
-          repo,
-          path: fileName,
-          ref: currentCommitSha,
-        });
-        this.requestCount++;
-        if ('content' in contentData) {
-          const fileContent = Buffer.from(
-            contentData.content,
-            'base64',
-          ).toString('utf-8');
-          let fileType: 'code' | 'config' | 'infrastructure' = 'code';
-          if (isInfrastructureFile) {
-            fileType = 'infrastructure';
-          } else if (isConfigFile) {
-            fileType = 'config';
-          }
-
-          contents.push({
-            filename: fileName,
-            content: fileContent,
-            sha: file.sha,
-            extension,
-            changes: file.changes,
-            additions: file.additions,
-            deletions: file.deletions,
-            repository: repo,
-            message: currentCommitMessage,
-            fileType,
-          });
-        }
-      } catch (error) {
-        this.logger.debug(
-          `Skipping file ${fileName} in commit ${currentCommitSha}: ${error.message}`,
-        );
+      const fileContent = file.patch || '';
+      if (!fileContent && file.additions === 0) {
         continue;
       }
+      let fileType: 'code' | 'config' | 'infrastructure' = 'code';
+      if (isInfrastructureFile) {
+        fileType = 'infrastructure';
+      } else if (isConfigFile) {
+        fileType = 'config';
+      }
+      contents.push({
+        filename: fileName,
+        content: fileContent,
+        sha: file.sha,
+        extension,
+        changes: file.changes,
+        additions: file.additions,
+        deletions: file.deletions,
+        repository: repo,
+        //message: currentCommitMessage,
+        fileType,
+      });
     }
     return contents;
   }
@@ -334,16 +321,14 @@ export class GitHubVcsProvider implements IVcsProvider {
           },
         );
         this.requestCount++;
-        const filesWithContent = await this.getFileChangesInCommit(
+        const filesWithContent = this.getFileChangesInCommit(
           repo,
-          owner,
-          commitDetails.files.slice(0, maxFilesPerCommit) || [],
-          commitDetails.sha,
-          commitDetails.commit.message,
+          commitDetails.files?.slice(0, maxFilesPerCommit) || [],
         );
         if (filesWithContent.length !== 0) {
           commitDetailsArray.push({
             sha: commitDetails.sha,
+            message: commitDetails.commit.message,
             contents: filesWithContent,
             author: commitDetails.commit.author
               ? {
@@ -416,5 +401,67 @@ export class GitHubVcsProvider implements IVcsProvider {
       }
     }
     return analyzedData;
+  }
+
+  async getCollaborationData(repo: string, owner: string) {
+    const res = await this.octokit.rest.pulls.list({
+      owner,
+      repo,
+      state: 'closed',
+      sort: 'updated',
+      direction: 'desc',
+      per_page: 100,
+    });
+    const reviews: PullRequestReview[] = [];
+    for (const pr of res.data) {
+      if (pr.merged_at) {
+        const { data: listReviews } = await this.octokit.rest.pulls.listReviews(
+          {
+            owner,
+            repo,
+            pull_number: pr.number,
+          },
+        );
+        const comments = await this.octokit.rest.pulls.listReviewComments({
+          owner,
+          repo,
+          pull_number: pr.number,
+        });
+        for (const review of listReviews) {
+          if (!review.submitted_at) continue;
+          const commentsForReview = comments.data.filter(
+            (c) => c.commit_id === review.commit_id,
+          );
+          const commentsCount =
+            (review.body?.trim() ? 1 : 0) + commentsForReview.length;
+          reviews.push({
+            commitSha: review.commit_id,
+            prNumber: pr.number,
+            reviewedAt: new Date(review.submitted_at),
+            commentsCount,
+            changesRequested: review.state === 'CHANGES_REQUESTED',
+            approved: review.state === 'APPROVED',
+          });
+        }
+      }
+    }
+    return reviews;
+  }
+
+  async getContributors(
+    repo: string,
+    owner: string,
+  ): Promise<{ teamSize: number }> {
+    const contributors = await this.octokit.paginate(
+      this.octokit.rest.repos.listContributors,
+      {
+        owner,
+        repo,
+        per_page: 100,
+      },
+    );
+    return {
+      teamSize: contributors.length,
+    };
   }
 }
