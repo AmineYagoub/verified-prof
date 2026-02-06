@@ -1,9 +1,3 @@
-export const STATIC_LANGUAGE_MODULES: Record<string, unknown> = {
-  'tree-sitter-typescript': require('tree-sitter-typescript'),
-  'tree-sitter-javascript': require('tree-sitter-javascript'),
-  'tree-sitter-python': require('tree-sitter-python'),
-};
-
 export interface LanguageConfig {
   module: string;
   query: string;
@@ -73,16 +67,6 @@ export const LANGUAGES_CONFIG: Record<string, LanguageConfig> = {
       COMMON_QUERIES.LINE_COMMENT,
     ]),
   },
-  swift: {
-    module: 'tree-sitter-swift',
-    query: buildQuery([
-      '(import_declaration) @import',
-      '[(class_declaration name: (type_identifier) @class.name) (struct_declaration name: (type_identifier) @class.name)] @class.def',
-      '(function_declaration name: (identifier) @func.name) @func.def',
-      '[(if_statement) (for_in_statement) (while_statement) (switch_statement)] @complexity.branch',
-      COMMON_QUERIES.COMMENT,
-    ]),
-  },
   php: {
     module: 'tree-sitter-php',
     query: buildQuery([
@@ -94,16 +78,6 @@ export const LANGUAGES_CONFIG: Record<string, LanguageConfig> = {
       COMMON_QUERIES.COMMENT,
     ]),
   },
-  kotlin: {
-    module: 'tree-sitter-kotlin',
-    query: buildQuery([
-      '(import_header) @import',
-      '(class_declaration name: (type_identifier) @class.name) @class.def',
-      '(function_declaration name: (simple_identifier) @func.name) @func.def',
-      '[(if_expression) (for_statement) (while_statement) (when_entry)] @complexity.branch',
-      COMMON_QUERIES.COMMENT,
-    ]),
-  },
   zig: {
     module: 'tree-sitter-zig',
     query: buildQuery([
@@ -111,6 +85,33 @@ export const LANGUAGES_CONFIG: Record<string, LanguageConfig> = {
       '(FnProto name: (identifier) @func.name) @func.def',
       '[(IfPrefix) (ForPrefix) (WhilePrefix)] @complexity.branch',
       COMMON_QUERIES.LINE_COMMENT,
+    ]),
+  },
+  yaml: {
+    module: '@tree-sitter-grammars/tree-sitter-yaml',
+    query: buildQuery([
+      '(block_mapping_pair key: (flow_node) @key) @pair',
+      '(block_sequence_item) @item',
+      '(flow_mapping) @flow_map',
+      '(plain_scalar) @scalar',
+    ]),
+  },
+  json: {
+    module: 'tree-sitter-json',
+    query: buildQuery([
+      '(pair key: (string) @key value: (_) @value) @pair',
+      '(object) @object',
+      '(array) @array',
+    ]),
+  },
+  vue: {
+    module: 'tree-sitter-vue',
+    query: buildQuery([
+      '(script_start (import_statement) @import)',
+      '(component_definition name: (identifier) @class.name) @class.def',
+      '(function_definition name: (identifier) @func.name) @func.def',
+      '[(if_statement) (for_statement) (while_statement) (switch_case) (ternary_expression)] @complexity.branch',
+      COMMON_QUERIES.COMMENT,
     ]),
   },
 };

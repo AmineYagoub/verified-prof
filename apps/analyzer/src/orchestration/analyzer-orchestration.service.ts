@@ -9,6 +9,7 @@ import {
   PLAN_POLICIES,
   PlanPolicy,
   TagSummaryEvent,
+  VcsProviderType,
 } from '@verified-prof/shared';
 import { AstAnalyzerService } from './ast-analyzer.service';
 import { PrismaService } from '@verified-prof/prisma';
@@ -30,7 +31,10 @@ export class AnalyzerOrchestrationService {
       await this.deleteAllDataForUser(event.userId);
       const { userId, plan } = event;
       const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
-      const provider = await this.providerFactory.createProviderForUser(userId);
+      const provider = await this.providerFactory.createProviderForUser(
+        userId,
+        VcsProviderType.GITHUB,
+      );
       const repos = await provider.getLatestCommitsContent({
         maxRepo: policy.maxRepositories,
         maxCommits: policy.maxCommits,
@@ -72,12 +76,11 @@ export class AnalyzerOrchestrationService {
             (acc, s) => acc + (s.tagSummary?.complexity ?? 0),
             0,
           );
-          const commitMessage = c.contents?.[0]?.message ?? '';
           const [repoOwner, repoName] = r.repository.split('/');
           missionEvents.push(
             new MissionEvent(
               {
-                commit_message: commitMessage,
+                commit_message: c.message,
                 total_files: totalFiles,
                 total_complexity: totalComplexity,
                 repoOwner,
@@ -132,39 +135,41 @@ export class AnalyzerOrchestrationService {
 
   private async deleteAllDataForUser(userId: string): Promise<void> {
     this.logger.log(`Deleting all analysis data for user ${userId}`);
-    await this.prisma.client.analysisTagSummary.deleteMany({
-      where: { userId },
-    });
-    await this.prisma.client.architecturalLayer.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.cognitivePattern.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.cognitiveStyle.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.coreMetrics.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.effortDistribution.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.languageExpertise.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.mentorshipActivity.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.mission.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.techStackDNA.deleteMany({
-      where: { userProfile: { userId } },
-    });
-    await this.prisma.client.weeklyIntensity.deleteMany({
-      where: { userProfile: { userId } },
-    });
+    await Promise.all([
+      this.prisma.client.analysisTagSummary.deleteMany({
+        where: { userId },
+      }),
+      this.prisma.client.architecturalLayer.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.cognitivePattern.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.cognitiveStyle.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.coreMetrics.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.effortDistribution.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.languageExpertise.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.mentorshipActivity.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.mission.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.techStackDNA.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+      this.prisma.client.weeklyIntensity.deleteMany({
+        where: { userProfile: { userId } },
+      }),
+    ]);
 
     this.logger.log(`All analysis data deleted for user ${userId}`);
   }
