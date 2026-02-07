@@ -4,3 +4,4 @@ export * from './ast-analysis';
 export * from '../dto/analyze/trigger.dto';
 export * from './profile-hybrid';
 export * from './leadership';
+export * from './technology-stack';

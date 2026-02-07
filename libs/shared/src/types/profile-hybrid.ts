@@ -4,6 +4,8 @@ export type LearningCurveTrend = 'Exponential' | 'Steady' | 'Specialist';
 export type MissionImpact = 'Infrastructure' | 'Feature' | 'Refactor' | 'Fix';
 export type MentorshipType = 'GIVEN' | 'RECEIVED';
 
+import { TechnologyStackResponse } from './technology-stack';
+
 export interface CoreMetricsApiResponse {
   userId: string;
   codeImpact: number;
@@ -130,6 +132,7 @@ export interface UserProfileResponse {
   analysisProgress?: number;
   coreMetrics?: CoreMetricsApiResponse;
   techStackDNA?: TechStackDNA;
+  technologyStack?: TechnologyStackResponse[];
   missionTimeline?: MissionTimeline;
   cognitiveStyle?: CognitiveStyle;
   mentorshipRatio?: MentorshipRatio;

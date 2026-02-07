@@ -19,10 +19,10 @@ export const PLAN_POLICIES: Record<
   FREE: {
     plan: 'FREE',
     windowDays: 90,
-    maxCommits: 1000,
-    maxRepositories: 10,
-    maxFilesPerCommit: 25,
-    commitsPerPage: 50,
+    maxCommits: 100,
+    maxRepositories: 4,
+    maxFilesPerCommit: 100,
+    commitsPerPage: 100,
     repositoriesPerPage: 50,
   },
   PREMIUM: {
@@ -31,7 +31,7 @@ export const PLAN_POLICIES: Record<
     maxCommits: 10000,
     maxRepositories: 50,
     maxFilesPerCommit: 100,
-    commitsPerPage: 50,
+    commitsPerPage: 100,
     repositoriesPerPage: 50,
   },
   ENTERPRISE: {

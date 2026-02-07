@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsArray,
   ValidateNested,
-  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -102,10 +101,6 @@ export class AnalysisPersistedEvent {
   @IsOptional()
   @IsNumber()
   teamSize?: number;
-
-  @IsOptional()
-  @IsString()
-  plan?: 'FREE' | 'PREMIUM' | 'ENTERPRISE';
 
   @IsOptional()
   @IsArray()
