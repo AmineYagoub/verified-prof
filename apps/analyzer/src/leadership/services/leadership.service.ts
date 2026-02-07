@@ -1,14 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
-  JOB_EVENTS,
-  AnalysisPersistedEvent,
   EngineeringLeadershipScore,
 } from '@verified-prof/shared';
 import { ArchitecturalLayerService } from './architectural-layer.service';
 import { EffortDistributionService } from './effort-distribution.service';
 
+/**
+ * Leadership Service - Aggregates engineering leadership data.
+ *
+ * Note: The actual data generation is handled by:
+ * - ArchitecturalLayerService (listens to JOB_EVENTS.ANALYSIS_PERSISTED)
+ * - EffortDistributionService (listens to JOB_EVENTS.ANALYSIS_PERSISTED)
+ *
+ * This service only aggregates the data for retrieval via the API.
+ */
 @Injectable()
 export class LeadershipService {
   private readonly logger = new Logger(LeadershipService.name);
@@ -19,24 +25,10 @@ export class LeadershipService {
     private readonly effortDistributionService: EffortDistributionService,
   ) {}
 
-  @OnEvent(JOB_EVENTS.ANALYSIS_PERSISTED, { async: true })
-  async handleAnalysisPersisted(event: AnalysisPersistedEvent) {
-    this.logger.log(
-      `Engineering Leadership generation triggered for user ${event.userId}`,
-    );
-
-    try {
-      this.logger.log(
-        `Engineering Leadership generated successfully for user ${event.userId}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `Failed to generate Engineering Leadership for user ${event.userId}`,
-        error,
-      );
-    }
-  }
-
+  /**
+   * Get the complete engineering leadership score for a user.
+   * This aggregates data from both architectural layers and effort distribution.
+   */
   async getEngineeringLeadership(
     userId: string,
   ): Promise<EngineeringLeadershipScore> {
@@ -60,7 +52,7 @@ export class LeadershipService {
       `Retrieved ${architecturalLayers.length} layers and ${effortDistribution.length} effort distributions for user ${userId}`,
     );
 
-    const result = {
+    return {
       architecturalLayers,
       effortDistribution: effortDistribution.map((dist) => ({
         weekStart: dist.weekStart,
@@ -76,8 +68,6 @@ export class LeadershipService {
         },
       })),
     };
-
-    return result;
   }
 
   private getEmptyScore(): EngineeringLeadershipScore {

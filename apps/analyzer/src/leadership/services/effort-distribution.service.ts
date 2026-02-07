@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import { AnalysisPersistedEvent, JOB_EVENTS } from '@verified-prof/shared';
@@ -16,8 +16,6 @@ interface CategoryPattern {
 
 @Injectable()
 export class EffortDistributionService {
-  private readonly logger = new Logger(EffortDistributionService.name);
-
   private readonly categoryPatterns: CategoryPattern[] = [
     {
       category: 'Feature',
@@ -83,16 +81,9 @@ export class EffortDistributionService {
   @OnEvent(JOB_EVENTS.ANALYSIS_PERSISTED, { async: true })
   async handleAnalysisPersisted(event: AnalysisPersistedEvent): Promise<void> {
     const { userId, commitMetadata } = event;
-
     if (!userId || !commitMetadata || commitMetadata.length === 0) {
-      this.logger.warn(
-        `Skipping effort distribution - missing data for user ${userId}`,
-      );
       return;
     }
-
-    this.logger.log(`Generating effort distribution for user ${userId}`);
-
     await this.generateAndPersist(userId, commitMetadata);
   }
 
@@ -103,24 +94,15 @@ export class EffortDistributionService {
     const userProfile = await this.prisma.client.userProfile.findUnique({
       where: { userId },
     });
-
     if (!userProfile) {
-      this.logger.warn(`No profile found for user ${userId}`);
       return;
     }
-
-    this.logger.log(
-      `Processing ${commitMetadata.length} commits (data already filtered by plan policy)`,
-    );
-
     const commits = commitMetadata.map((commit) => ({
       sha: commit.sha,
       message: commit.message,
       date: new Date(commit.authorDate),
     }));
-
     const distributions = this.calculateDistribution(commits);
-
     await this.prisma.client.effortDistribution.deleteMany({
       where: { userProfileId: userProfile.id },
     });
@@ -139,21 +121,15 @@ export class EffortDistributionService {
         security: dist.categories.security,
       })),
     });
-
-    this.logger.log(
-      `Effort distribution persisted for user ${userId} (${distributions.length} weeks)`,
-    );
   }
 
   async get(userId: string) {
     const userProfile = await this.prisma.client.userProfile.findUnique({
       where: { userId },
     });
-
     if (!userProfile) {
       return [];
     }
-
     return this.prisma.client.effortDistribution.findMany({
       where: { userProfileId: userProfile.id },
       select: {
@@ -189,7 +165,6 @@ export class EffortDistributionService {
     for (const commit of commits) {
       const weekKey = this.getWeekStart(commit.date);
       const category = this.categorizeCommit(commit.message);
-
       if (!weekMap.has(weekKey)) {
         weekMap.set(weekKey, {
           features: 0,
@@ -205,7 +180,6 @@ export class EffortDistributionService {
 
       const week = weekMap.get(weekKey);
       if (!week) continue;
-
       switch (category) {
         case 'Feature':
           week.features++;
@@ -250,7 +224,6 @@ export class EffortDistributionService {
         }
       }
     }
-
     return 'Feature';
   }
 

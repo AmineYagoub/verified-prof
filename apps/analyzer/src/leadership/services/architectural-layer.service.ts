@@ -1,16 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
+import { Injectable } from '@nestjs/common';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
   AnalysisPersistedEvent,
-  JOB_EVENTS,
   ArchitecturalLayerRequestedEvent,
+  JOB_EVENTS,
 } from '@verified-prof/shared';
 
 @Injectable()
 export class ArchitecturalLayerService {
-  private readonly logger = new Logger(ArchitecturalLayerService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventEmitter: EventEmitter2,
@@ -19,16 +17,9 @@ export class ArchitecturalLayerService {
   @OnEvent(JOB_EVENTS.ANALYSIS_PERSISTED, { async: true })
   async handleAnalysisPersisted(event: AnalysisPersistedEvent): Promise<void> {
     const { userId, codeOwnership, commitMetadata } = event;
-
     if (!userId || !codeOwnership || codeOwnership.length === 0) {
-      this.logger.warn(
-        `Skipping architectural layers - missing data for user ${userId}`,
-      );
       return;
     }
-
-    this.logger.log(`Preparing architectural layer request for user ${userId}`);
-
     await this.prepareAndEmit(userId, codeOwnership, commitMetadata || []);
   }
 
@@ -45,17 +36,13 @@ export class ArchitecturalLayerService {
     const userProfile = await this.prisma.client.userProfile.findUnique({
       where: { userId },
     });
-
     if (!userProfile) {
-      this.logger.warn(`No profile found for user ${userId}`);
       return;
     }
-
     const fileMetadata = this.prepareFileMetadata(
       codeOwnership,
       commitMetadata,
     );
-
     const requestEvent: ArchitecturalLayerRequestedEvent = {
       userId,
       userProfileId: userProfile.id,
@@ -97,11 +84,9 @@ export class ArchitecturalLayerService {
     const userProfile = await this.prisma.client.userProfile.findUnique({
       where: { userId },
     });
-
     if (!userProfile) {
       return [];
     }
-
     return this.prisma.client.architecturalLayer.findMany({
       where: { userProfileId: userProfile.id },
       select: {
