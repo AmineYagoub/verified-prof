@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -28,11 +29,16 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
       <aside className="drawer-side bg-base-200 min-h-screen w-64 flex flex-col">
         <div className="p-4 border-b border-base-300">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-content font-bold text-xl">V</span>
-            </div>
-            <span className="text-xl font-bold">VerifiedProf</span>
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/images/v-logo.png"
+              alt="Verified.Prof Logo"
+              width={32}
+              height={22}
+              className="h-8 w-auto"
+              priority
+            />
+            <span className="font-bold text-lg">erified.Prof</span>
           </Link>
         </div>
 
@@ -87,10 +93,10 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
           <li
             className={`flex items-start gap-3 rounded-full ${
-              isActive('/dashboard/achievements') ? 'menu-active' : ''
+              isActive('/dashboard/vtwin') ? 'menu-active' : ''
             }`}
           >
-            <Link href="/dashboard/achievements">
+            <Link href="/dashboard/vtwin">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="h-5 w-5"
@@ -102,97 +108,68 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                />
-              </svg>
-              <span>Achievements</span>
-            </Link>
-          </li>
-
-          <li
-            className={`flex items-start gap-3 rounded-full ${
-              isActive('/dashboard/badges') ? 'menu-active' : ''
-            }`}
-          >
-            <Link href="/dashboard/badges">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-                />
-              </svg>
-              <span>Badges</span>
-            </Link>
-          </li>
-
-          <li
-            className={`flex items-start gap-3 rounded-full ${
-              isActive('/dashboard/skills') ? 'menu-active' : ''
-            }`}
-          >
-            <Link href="/dashboard/skills">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-                />
-              </svg>
-              <span>Skills</span>
-            </Link>
-          </li>
-
-          <div className="divider my-2"></div>
-
-          <li
-            className={`flex items-start gap-3 rounded-full  ${
-              isActive('/settings') ? 'menu-active' : ''
-            }`}
-          >
-            <Link href="/settings">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
                 />
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  d="M8 11a5 5 0 0110 0"
+                />
+                <circle
+                  cx="12"
+                  cy="2"
+                  r="1"
+                  fill="currentColor"
+                  stroke="none"
+                />
+                <circle
+                  cx="8"
+                  cy="3"
+                  r="0.5"
+                  fill="currentColor"
+                  stroke="none"
+                />
+                <circle
+                  cx="16"
+                  cy="3"
+                  r="0.5"
+                  fill="currentColor"
+                  stroke="none"
                 />
               </svg>
-              <span>Settings</span>
+              <span>vTwin</span>
             </Link>
           </li>
-
-          <button className="btn btn-ghost btn-sm mt-4">delete data</button>
         </ul>
 
-        <div className="p-4 border-t border-base-300">
+        <div className="p-4 border-t border-base-300 space-y-2">
+          <Link
+            href="/settings"
+            className="btn btn-ghost btn-sm w-full justify-start gap-3"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            <span>Settings</span>
+          </Link>
           <Link
             href="/api/auth/signout"
             className="btn btn-ghost btn-sm w-full justify-start gap-3"
