@@ -1,54 +1,30 @@
 import { Injectable } from '@nestjs/common';
-
-type TagSummary = {
-  id: string;
-  repoFullName: string;
-  commitSha: string;
-  filePath: string;
-  complexity: number;
-  functions?: string[];
-  classes?: string[];
-  metadata?: {
-    language?: string;
-  };
-  createdAt: Date;
-};
-
-type MissionImpactEnum = 'Infrastructure' | 'Feature' | 'Refactor' | 'Fix';
-
-export interface MissionData {
-  week: string;
-  date: Date;
-  impact: MissionImpactEnum;
-  title: string;
-  architecturalFeat: string | null;
-  summary: string;
-  achievements: string[];
-  domainContext: string;
-  complexityAdded: number;
-  commitCount: number;
-  filesChanged: number;
-  isHeroMission: boolean;
-}
+import {
+  MissionTagSummary,
+  MissionData,
+  MissionImpactEnum,
+} from '../types/mission.types';
 
 @Injectable()
 export class MissionCalculatorService {
   calculateMissions(
-    tagSummaries: TagSummary[],
+    tagSummaries: MissionTagSummary[],
     weekStart: string,
   ): MissionData[] {
     const commitGroups = this.groupByCommit(tagSummaries);
     const missions: MissionData[] = [];
-
     for (const [, files] of commitGroups.entries()) {
+      if (files.length === 0) {
+        continue;
+      }
       const totalComplexity = files.reduce(
         (sum, f) => sum + (f.complexity || 0),
         0,
       );
       const filesChanged = files.length;
       const date = files[0]?.createdAt || new Date();
-
-      const commitMessage = files[0]?.commitSha || '';
+      const commitMessage =
+        files[0]?.metadata?.commitMessage || files[0]?.commitSha || '';
       const impact = this.classifyImpact(commitMessage);
       const title = this.generateTitle(commitMessage, impact);
       const summary = this.generateSummary(files);
@@ -80,9 +56,10 @@ export class MissionCalculatorService {
     return missions;
   }
 
-  groupByCommit(tagSummaries: TagSummary[]): Map<string, TagSummary[]> {
-    const groups = new Map<string, TagSummary[]>();
-
+  groupByCommit(
+    tagSummaries: MissionTagSummary[],
+  ): Map<string, MissionTagSummary[]> {
+    const groups = new Map<string, MissionTagSummary[]>();
     for (const tag of tagSummaries) {
       const key = tag.commitSha;
       if (!groups.has(key)) {
@@ -93,13 +70,11 @@ export class MissionCalculatorService {
         group.push(tag);
       }
     }
-
     return groups;
   }
 
   classifyImpact(commitMessage: string): MissionImpactEnum {
     const message = commitMessage.toLowerCase();
-
     if (
       message.includes('infrastructure') ||
       message.includes('ci/cd') ||
@@ -148,7 +123,7 @@ export class MissionCalculatorService {
     return `${prefix} ${cleanMessage.charAt(0).toUpperCase()}${cleanMessage.slice(1)}`;
   }
 
-  generateSummary(files: TagSummary[]): string {
+  generateSummary(files: MissionTagSummary[]): string {
     const fileCount = files.length;
     const totalComplexity = files.reduce(
       (sum, f) => sum + (f.complexity || 0),
@@ -162,7 +137,7 @@ export class MissionCalculatorService {
   }
 
   extractAchievements(
-    files: TagSummary[],
+    files: MissionTagSummary[],
     impact: MissionImpactEnum,
   ): string[] {
     const achievements: string[] = [];
@@ -188,7 +163,7 @@ export class MissionCalculatorService {
     return achievements;
   }
 
-  extractDomain(files: TagSummary[]): string {
+  extractDomain(files: MissionTagSummary[]): string {
     const paths = files.map((f) => f.filePath);
     const commonPath = this.findCommonPath(paths);
 
@@ -232,20 +207,17 @@ export class MissionCalculatorService {
   }
 
   identifyArchitecturalFeat(
-    files: TagSummary[],
+    files: MissionTagSummary[],
     totalComplexity: number,
   ): string | null {
     if (totalComplexity > 100) {
       return 'High complexity implementation demonstrating advanced architectural skills';
     }
-
     const hasMultipleLanguages =
       new Set(files.map((f) => f.metadata?.language)).size > 2;
-
     if (hasMultipleLanguages) {
       return 'Cross-language integration showcasing polyglot expertise';
     }
-
     return null;
   }
 }
