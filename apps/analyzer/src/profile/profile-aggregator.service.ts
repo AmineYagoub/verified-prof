@@ -7,6 +7,7 @@ import {
   MissionTimeline,
   LanguageExpertise,
   WeeklyIntensity,
+  TechnologyStackResponse,
 } from '@verified-prof/shared';
 
 @Injectable()
@@ -50,6 +51,12 @@ export class ProfileAggregatorService {
           orderBy: { createdAt: 'desc' },
           take: 4,
         },
+        technologyStack: {
+          orderBy: [{ masteryLevel: 'desc' }, { implementationScore: 'desc' }],
+          where: {
+            masteryLevel: { in: ['PROFICIENT', 'EXPERT', 'USED'] },
+          },
+        },
       },
     });
 
@@ -71,6 +78,10 @@ export class ProfileAggregatorService {
       techStackDNA: userProfile.techStackDNA
         ? this.mapTechStackDNA(userProfile.techStackDNA)
         : undefined,
+      technologyStack:
+        userProfile.technologyStack && userProfile.technologyStack.length > 0
+          ? this.mapTechnologyStack(userProfile.technologyStack)
+          : undefined,
       missionTimeline:
         userProfile.missions && userProfile.missions.length > 0
           ? this.mapMissionTimeline(userProfile.missions)
@@ -170,6 +181,25 @@ export class ProfileAggregatorService {
         isHeroMission: (m.isHeroMission as boolean) || false,
       })),
     };
+  }
+
+  private mapTechnologyStack(
+    techStack: Array<Record<string, unknown>>,
+  ): TechnologyStackResponse[] {
+    return techStack.map((tech) => ({
+      id: (tech.id as string) || '',
+      category: tech.category as TechnologyStackResponse['category'],
+      name: (tech.name as string) || '',
+      version: (tech.version as string) || undefined,
+      masteryLevel:
+        tech.masteryLevel as TechnologyStackResponse['masteryLevel'],
+      implementationScore: (tech.implementationScore as number) || 0,
+      usageCount: (tech.usageCount as number) || 0,
+      weeksActive: (tech.weeksActive as number) || 0,
+      evidenceTypes: (tech.evidenceTypes as string[]) || [],
+      codePatterns: (tech.codePatterns as string[]) || [],
+      configFiles: (tech.configFiles as string[]) || [],
+    }));
   }
 
   private mapArchitecturalLayers(layers: Record<string, unknown>[]) {
