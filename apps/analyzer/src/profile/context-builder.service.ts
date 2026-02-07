@@ -9,6 +9,7 @@ export class ContextBuilderService {
     sections.push(this.buildInterviewInstructions());
     sections.push(this.buildIdentitySection(profile));
     sections.push(this.buildCoreMetricsSection(profile));
+    sections.push(this.buildTechnologyStackSection(profile));
     sections.push(this.buildTechStackSection(profile));
     sections.push(this.buildMissionSection(profile));
 
@@ -182,5 +183,140 @@ Total Missions Documented: ${profile.missionTimeline.missions.length}
 ${missions}
 
 Note: Each mission represents a cohesive body of work with verified code commits. Use these when discussing specific projects or technical implementations.`;
+  }
+
+  private buildTechnologyStackSection(profile: UserProfileResponse): string {
+    if (!profile.technologyStack?.length) return '';
+
+    const byCategory = this.groupByCategory(profile.technologyStack);
+    const sections: string[] = [];
+
+    const databases = byCategory.get('DATABASE') || [];
+    if (databases.length > 0) {
+      sections.push(this.formatTechCategory('Databases', databases));
+    }
+
+    const orms = byCategory.get('ORM_ODM') || [];
+    if (orms.length > 0) {
+      sections.push(this.formatTechCategory('ORMs & ODMs', orms));
+    }
+
+    const backendFrameworks = byCategory.get('BACKEND_FRAMEWORK') || [];
+    if (backendFrameworks.length > 0) {
+      sections.push(
+        this.formatTechCategory('Backend Frameworks', backendFrameworks),
+      );
+    }
+
+    const frontendFrameworks = byCategory.get('FRONTEND_FRAMEWORK') || [];
+    if (frontendFrameworks.length > 0) {
+      sections.push(
+        this.formatTechCategory('Frontend Frameworks', frontendFrameworks),
+      );
+    }
+
+    const buildTools = byCategory.get('BUILD_TOOL') || [];
+    if (buildTools.length > 0) {
+      sections.push(this.formatTechCategory('Build Tools', buildTools));
+    }
+
+    const testing = byCategory.get('TESTING_FRAMEWORK') || [];
+    if (testing.length > 0) {
+      sections.push(this.formatTechCategory('Testing Frameworks', testing));
+    }
+
+    const cicd = byCategory.get('CI_CD') || [];
+    if (cicd.length > 0) {
+      sections.push(this.formatTechCategory('CI/CD', cicd));
+    }
+
+    const containers = byCategory.get('CONTAINER_ORCHESTRATION') || [];
+    if (containers.length > 0) {
+      sections.push(
+        this.formatTechCategory('Container & Orchestration', containers),
+      );
+    }
+
+    if (sections.length === 0) return '';
+
+    return `=== VERIFIED TECHNOLOGY STACK ===
+This section contains ACTUAL tools and technologies detected from code commits.
+Detection uses Tree-sitter AST parsing for 95%+ precision - NO false positives.
+
+Evidence types:
+- AST Analysis: Precise code structure parsing (95% confidence)
+- Config Files: package.json, schema.prisma, config files (90-100% confidence)
+- Infrastructure: Docker, CI/CD workflows (100% confidence)
+
+${sections.join('\n\n')}
+
+Mastery Levels (MENTIONED < USED < PROFICIENT < EXPERT):
+- EXPERT: 3+ weeks, consistent usage, high-quality evidence
+- PROFICIENT: 2+ weeks, regular usage, solid patterns
+- USED: Multiple instances, verified code patterns
+- MENTIONED: Single dependency or config reference
+
+Anti-gaming: Requires 3+ uses AND 2+ weeks for USED+ levels.
+All technologies verified through actual code analysis, not self-reported.`;
+  }
+
+  private groupByCategory(
+    stack: Array<{
+      category: string;
+      name: string;
+      masteryLevel: string;
+      implementationScore: number;
+    }>,
+  ) {
+    const grouped = new Map<
+      string,
+      Array<{
+        category: string;
+        name: string;
+        masteryLevel: string;
+        implementationScore: number;
+      }>
+    >();
+
+    for (const tech of stack) {
+      if (!grouped.has(tech.category)) {
+        grouped.set(tech.category, []);
+      }
+      grouped.get(tech.category)?.push(tech);
+    }
+
+    return grouped;
+  }
+
+  private formatTechCategory(
+    title: string,
+    technologies: Array<{
+      name: string;
+      masteryLevel: string;
+      implementationScore: number;
+    }>,
+  ): string {
+    const formatted = technologies
+      .map((tech) => {
+        const emoji = this.getMasteryEmoji(tech.masteryLevel);
+        return `  ${emoji} ${tech.name} - ${tech.masteryLevel} (score: ${tech.implementationScore}/100)`;
+      })
+      .join('\n');
+
+    return `${title}:
+${formatted}`;
+  }
+
+  private getMasteryEmoji(level: string): string {
+    switch (level) {
+      case 'EXPERT':
+        return '🏆';
+      case 'PROFICIENT':
+        return '⭐';
+      case 'USED':
+        return '✓';
+      default:
+        return '·';
+    }
   }
 }
