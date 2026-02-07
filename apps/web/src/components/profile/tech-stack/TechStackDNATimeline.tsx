@@ -13,6 +13,19 @@ import {
   SiSwift,
   SiKotlin,
   SiSharp,
+  SiReact,
+  SiVuedotjs,
+  SiSvelte,
+  SiScala,
+  SiDart,
+  SiElixir,
+  SiErlang,
+  SiHaskell,
+  SiClojure,
+  SiLua,
+  SiR,
+  SiPerl,
+  SiZig,
 } from '@icons-pack/react-simple-icons';
 import { useTechStackDNA } from '../../../hooks/use-tech-stack-dna';
 
@@ -22,6 +35,7 @@ interface TechStackDNATimelineProps {
 
 const getLanguageIcon = (lang: string) => {
   const lower = lang.toLowerCase();
+  if (lower.includes('react')) return <SiReact className="w-4 h-4" />;
   if (lower.includes('typescript')) return <SiTypescript className="w-4 h-4" />;
   if (lower.includes('javascript')) return <SiJavascript className="w-4 h-4" />;
   if (lower.includes('python')) return <SiPython className="w-4 h-4" />;
@@ -36,6 +50,18 @@ const getLanguageIcon = (lang: string) => {
   if (lower.includes('kotlin')) return <SiKotlin className="w-4 h-4" />;
   if (lower.includes('c#') || lower.includes('csharp'))
     return <SiSharp className="w-4 h-4" />;
+  if (lower.includes('vue')) return <SiVuedotjs className="w-4 h-4" />;
+  if (lower.includes('svelte')) return <SiSvelte className="w-4 h-4" />;
+  if (lower.includes('scala')) return <SiScala className="w-4 h-4" />;
+  if (lower.includes('dart')) return <SiDart className="w-4 h-4" />;
+  if (lower.includes('elixir')) return <SiElixir className="w-4 h-4" />;
+  if (lower.includes('erlang')) return <SiErlang className="w-4 h-4" />;
+  if (lower.includes('haskell')) return <SiHaskell className="w-4 h-4" />;
+  if (lower.includes('clojure')) return <SiClojure className="w-4 h-4" />;
+  if (lower.includes('lua')) return <SiLua className="w-4 h-4" />;
+  if (lower === 'r') return <SiR className="w-4 h-4" />;
+  if (lower.includes('perl')) return <SiPerl className="w-4 h-4" />;
+  if (lower.includes('zig')) return <SiZig className="w-4 h-4" />;
   return null;
 };
 
