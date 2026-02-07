@@ -93,20 +93,29 @@ For EACH work session, analyze the commit messages to understand what was ACTUAL
 
 4. **achievements**: 2-4 bullet points with SPECIFIC details:
    - Include numbers: "Updated 52 API endpoints", "Created 28 React components"
-   - Name technologies: "Integrated Stripe payment API", "Set up Redis caching"
+   - Name ACTUAL libraries/frameworks: "Integrated Stripe payment API", "Set up Redis caching", "Used Prisma for database migrations"
+   - Extract library names from topImports field: React, Express, Prisma, Zod, etc.
    - Show impact: "Reduced API latency from 500ms to 80ms"
-   - Extract from: filesChanged count, totalFunctions count, totalClasses count, commit messages
+   - Extract from: filesChanged count, totalFunctions count, totalClasses count, commit messages, topImports
 
-5. **patterns**: 1-4 actual coding patterns (NOT generic OOP/SOLID unless clearly evident):
-   - Look at Languages field for clues
-   - React/Vue = Frontend, express/fastapi = REST, socket.io = Event-Driven
-   - TypeScript files = Type-Safe
-   - Many classes = OOP, many functions = Functional
-   - Examples: "REST", "GraphQL", "Event-Driven", "TDD", "Microservices", "Type-Safe"
+5. **patterns**: 2-4 SPECIFIC technical patterns using actual library/framework names:
+   - Use EXACT names from topImports and Languages fields
+   - React patterns: "React Hooks", "React Context", "React Server Components"
+   - Backend patterns: "NestJS Modules", "Express Middleware", "Prisma ORM", "TypeORM"
+   - Testing: "Jest Unit Tests", "Playwright E2E"
+   - Auth: "JWT Authentication", "OAuth2", "Passport.js"
+   - State: "Redux", "Zustand", "TanStack Query"
+   - DO NOT use generic terms like "Type-Safe", "REST", "OOP" unless nothing else fits
+   - Examples: "Prisma ORM", "NestJS Dependency Injection", "React Hooks", "Zod Validation"
 
-6. **architecturalFeat**: Only if complexity > 500 OR 5+ languages OR 100+ files:
-   - Describe the actual system design/architecture
-   - Use specific terms: "API Gateway routing to 5 microservices"
+6. **architecturalFeat**: Be MORE AGGRESSIVE - include if ANY of these are true:
+   - Complexity > 300 (was 500)
+   - 3+ languages (was 5+)
+   - 50+ files (was 100+)
+   - Multiple services/modules being integrated
+   - New system-level patterns introduced (caching, queuing, event-driven, etc.)
+   - Describe the actual system design using specific technologies
+   - Examples: "NestJS microservices communicating via RabbitMQ", "React SPA with TanStack Query for server state"
    - Otherwise: null
 
 7. **domainContext**: 
@@ -117,37 +126,48 @@ For EACH work session, analyze the commit messages to understand what was ACTUAL
 
 ## Critical Instructions
 
+- SKIP LOW-VALUE MISSIONS: If a session is primarily dependency updates, config changes, or build script tweaks with no meaningful code changes, DO NOT include it in the response. Examples of what to skip:
+  * "Updated project dependencies"
+  * "Bump package versions"
+  * "Update build configurations"
+  * "Update .gitignore"
+  * "Format code" (unless part of larger refactor)
+- Only include missions that demonstrate actual development work: features, refactors, fixes, or meaningful infrastructure
 - READ THE COMMIT MESSAGES CAREFULLY - they contain the actual work done
+- Use EXACT library/framework names from topImports field (React, Prisma, NestJS, Zod, Express, etc.)
 - Use EXACT language names from Languages field
 - Convert metrics to achievements: ${commits[0]?.filesChanged} files → "Modified ${commits[0]?.filesChanged} files across codebase"
 - If commit says "add user auth" → title should be about user authentication
 - If commit says "refactor API" → don't call it a "feature", call it "Refactor"
 - NO GENERIC CORPORATE SPEAK - write like a developer explaining their work to another developer
+- For patterns, prefer "Prisma ORM" over "Database", "NestJS Modules" over "Backend", "React Hooks" over "Frontend"
 
 ## Examples of Good Responses
 
 Example 1 (Feature):
 {
-  "title": "Built user authentication system with JWT and Redis",
-  "summary": "Implemented secure authentication flow using JSON Web Tokens with Redis-based session management. Added login, registration, and password reset endpoints with email verification.",
+  "title": "Built user authentication with JWT, Redis sessions, and Passport.js",
+  "summary": "Implemented secure authentication flow using JSON Web Tokens with Redis-based session management. Added login, registration, and password reset endpoints with email verification using Passport.js strategies.",
   "achievements": [
-    "Created 8 API endpoints for auth flows with TypeScript and Express",
+    "Created 8 API endpoints for auth flows using NestJS and TypeScript",
     "Integrated Redis for session storage supporting 10K concurrent users",
-    "Implemented JWT token refresh mechanism with 15-minute access tokens"
+    "Implemented JWT token refresh with Passport.js strategies"
   ],
-  "patterns": ["REST", "Type-Safe", "Event-Driven"]
+  "patterns": ["NestJS Modules", "Passport.js", "JWT Authentication", "Redis Caching"],
+  "architecturalFeat": "Modular NestJS authentication system with Redis session store and JWT strategy"
 }
 
 Example 2 (Refactor):
 {
-  "title": "Refactored API validation layer covering 52 endpoints",
+  "title": "Refactored API validation with Zod schemas across 52 endpoints",
   "summary": "Standardized input validation across all API endpoints using Zod schemas. Replaced scattered validation logic with centralized middleware, reducing code duplication by 40%.",
   "achievements": [
     "Created 52 Zod validation schemas for TypeScript API routes",
     "Reduced validation code from 1,200 to 720 lines",
-    "Added comprehensive error messages for all validation failures"
+    "Integrated class-validator decorators for NestJS DTOs"
   ],
-  "patterns": ["Type-Safe", "DRY", "REST"]
+  "patterns": ["Zod Validation", "NestJS DTOs", "class-validator"],
+  "architecturalFeat": "Centralized validation layer using Zod schemas with NestJS pipes"
 }
 
 Generate mission summaries now following these exact guidelines.
