@@ -1,16 +1,12 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Google_Sans } from 'next/font/google';
 import './globals.css';
 import ReactQueryClientProvider from '../providers/ReactQueryClientProvider';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const googleSans = Google_Sans({
   subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
+  variable: '--font-google-sans',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -25,9 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${googleSans.variable} antialiased`}>
         <ReactQueryClientProvider>{children}</ReactQueryClientProvider>
       </body>
     </html>
