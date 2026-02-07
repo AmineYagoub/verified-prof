@@ -1,19 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
-import { createHash } from 'crypto';
 import {
+  AnalysisPersistedEvent,
+  CodeOwnershipDto,
+  CommitMetadataDto,
   JOB_EVENTS,
   JobProgressEvent,
   MissionEvent,
-  AnalysisPersistedEvent,
-  CommitMetadataDto,
-  CodeOwnershipDto,
   PullRequestReviewDto,
+  VcsProviderType,
 } from '@verified-prof/shared';
-import { VcsProviderFactory } from '../providers/vcs-provider.factory';
-import { GitHubVcsProvider } from '../providers/github/github-vcs.provider';
+import { createHash } from 'crypto';
 import { GitHubCollaborationService } from '../providers/github/github-collaboration.service';
+import { VcsProviderFactory } from '../providers/vcs-provider.factory';
 
 @Injectable()
 export class PersistsService {
@@ -28,8 +28,6 @@ export class PersistsService {
 
   @OnEvent(JOB_EVENTS.ANALYSIS_TAG_SUMMARY, { async: true })
   async handleTagSummary(missionEvents: MissionEvent[]) {
-    this.logger.log(`Persisting ${missionEvents.length} mission(s)`);
-
     const allSummaries = missionEvents.flatMap((m) => m.summaries);
     const commitShas: string[] = [];
     const persistedSummaries: Array<{
@@ -43,75 +41,62 @@ export class PersistsService {
     let totalFiles = 0;
     let totalComplexity = 0;
     let userId: string | null = null;
-    let plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' | undefined = undefined;
 
-    for (const summary of allSummaries) {
-      userId = summary.userId;
-      if (!plan && missionEvents[0]?.mission_metadata?.plan) {
-        plan = missionEvents[0].mission_metadata.plan;
+    if (allSummaries.length > 0) {
+      userId = allSummaries[0].userId;
+      const uniqueCommitShas = new Set<string>();
+      for (const summary of allSummaries) {
+        uniqueCommitShas.add(summary.commitSha);
+        totalFiles++;
+        totalComplexity += summary.tagSummary.complexity || 0;
       }
+      commitShas.push(...uniqueCommitShas);
       try {
-        const persisted = await this.prisma.client.analysisTagSummary.upsert({
-          where: {
-            repoFullName_commitSha_filePath: {
-              repoFullName: summary.repo,
-              commitSha: summary.commitSha,
-              filePath: summary.filePath,
-            },
-          },
-          update: {
-            contentHash: summary.tagSummary.contentHash,
-            tagSummary: JSON.parse(JSON.stringify(summary.tagSummary)),
-          },
-          create: {
+        await this.prisma.client.analysisTagSummary.createMany({
+          data: allSummaries.map((summary) => ({
             repoFullName: summary.repo,
             commitSha: summary.commitSha,
             filePath: summary.filePath,
             contentHash: summary.tagSummary.contentHash,
             tagSummary: JSON.parse(JSON.stringify(summary.tagSummary)),
             userId: summary.userId || null,
+          })),
+          skipDuplicates: true,
+        });
+        const persisted = await this.prisma.client.analysisTagSummary.findMany({
+          where: {
+            OR: allSummaries.map((summary) => ({
+              repoFullName: summary.repo,
+              commitSha: summary.commitSha,
+              filePath: summary.filePath,
+            })),
+          },
+          select: {
+            id: true,
+            repoFullName: true,
+            commitSha: true,
+            filePath: true,
+            tagSummary: true,
+            createdAt: true,
           },
         });
-
-        persistedSummaries.push({
-          id: persisted.id,
-          repoFullName: persisted.repoFullName,
-          commitSha: persisted.commitSha,
-          filePath: persisted.filePath,
-          tagSummary: persisted.tagSummary,
-          createdAt: persisted.createdAt,
-        });
-
-        if (!commitShas.includes(summary.commitSha)) {
-          commitShas.push(summary.commitSha);
-        }
-        totalFiles++;
-        totalComplexity += summary.tagSummary.complexity || 0;
+        persistedSummaries.push(...persisted);
       } catch (error) {
         this.logger.error(
-          `Failed to persist ${summary.repo}@${summary.commitSha}:${summary.filePath}`,
+          `Failed to persist ${allSummaries.length} summaries`,
           error,
         );
       }
     }
-
-    this.logger.log(
-      `Persisted ${totalFiles} files across ${commitShas.length} commits`,
-    );
-
     const weekStart = this.getISOWeek(new Date());
-
     const repoMetadata = this.extractRepoMetadata(missionEvents);
     let collaborationData: Partial<AnalysisPersistedEvent> = {};
-
     if (userId && repoMetadata.length > 0) {
       try {
         collaborationData = await this.extractCollaborationMetrics(
           userId,
           repoMetadata,
-          commitShas,
           missionEvents,
-          plan || 'FREE',
         );
       } catch (error) {
         this.logger.warn(
@@ -119,17 +104,15 @@ export class PersistsService {
         );
       }
     }
-
     this.em.emit(JOB_EVENTS.ANALYSIS_PERSISTED, {
       userId,
       commitShas,
       totalFiles,
       totalComplexity,
       weekStart,
-      plan: plan || 'FREE',
       tagSummaries: persistedSummaries,
       ...collaborationData,
-    } as AnalysisPersistedEvent);
+    });
   }
 
   private getISOWeek(date: Date): string {
@@ -159,7 +142,6 @@ export class PersistsService {
     missionEvents: MissionEvent[],
   ): Array<{ owner: string; name: string }> {
     const repos = new Map<string, { owner: string; name: string }>();
-
     for (const mission of missionEvents) {
       const { repoOwner, repoName } = mission.mission_metadata;
       if (repoOwner && repoName) {
@@ -167,28 +149,19 @@ export class PersistsService {
         repos.set(key, { owner: repoOwner, name: repoName });
       }
     }
-
     return Array.from(repos.values());
   }
 
   private async extractCollaborationMetrics(
     userId: string,
     repos: Array<{ owner: string; name: string }>,
-    commitShas: string[],
     missionEvents: MissionEvent[],
-    plan: 'FREE' | 'PREMIUM' | 'ENTERPRISE' = 'FREE',
   ): Promise<Partial<AnalysisPersistedEvent>> {
     try {
-      const provider = (await this.providerFactory.createProviderForUser(
+      const provider = await this.providerFactory.createProviderForUser(
         userId,
-      )) as GitHubVcsProvider;
-
-      if (!provider || !provider.getOctokit) {
-        this.logger.warn('Provider does not support collaboration extraction');
-        return {};
-      }
-
-      const octokit = provider.getOctokit();
+        VcsProviderType.GITHUB,
+      );
       const allMetrics = {
         commitMetadata: [] as CommitMetadataDto[],
         codeOwnership: [] as CodeOwnershipDto[],
@@ -217,17 +190,13 @@ export class PersistsService {
         }
       }
 
-      allMetrics.commitMetadata.push(...existingCommitMetadata.values());
-
       for (const repo of repos) {
         try {
           const metrics =
             await this.collaborationService.extractCollaborationMetrics(
-              octokit,
+              provider,
               repo.owner,
               repo.name,
-              commitShas,
-              userId,
               missionEvents.map((m) => ({
                 commitAuthor: m.mission_metadata.commitAuthor,
                 summaries: m.summaries.map((s) => ({
@@ -235,7 +204,6 @@ export class PersistsService {
                   fileStats: s.fileStats,
                 })),
               })),
-              plan,
             );
 
           allMetrics.codeOwnership.push(
@@ -255,7 +223,6 @@ export class PersistsService {
               commentsCount: r.commentsCount,
             })),
           );
-
           allMetrics.teamSize = Math.max(allMetrics.teamSize, metrics.teamSize);
         } catch (error) {
           this.logger.warn(
@@ -263,11 +230,7 @@ export class PersistsService {
           );
         }
       }
-
-      this.logger.log(
-        `Extracted: ${allMetrics.commitMetadata.length} commits, ${allMetrics.codeOwnership.length} files, ${allMetrics.pullRequestReviews.length} reviews`,
-      );
-
+      allMetrics.commitMetadata = Array.from(existingCommitMetadata.values());
       return allMetrics;
     } catch (error) {
       this.logger.error(
