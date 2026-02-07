@@ -18,7 +18,7 @@ export class TechStackCalculatorService {
   private readonly STEADY_GROWTH_RATE = 0.05;
 
   groupByWeekAndLanguage(
-    data: Array<{ tagSummary: unknown; createdAt: Date; filePath: string }>,
+    data: Array<{ tagSummary: TagSummary; createdAt: Date; filePath: string }>,
   ): Map<string, Map<string, Array<{ summary: TagSummary; date: Date }>>> {
     const weeklyMap = new Map<
       string,
@@ -26,7 +26,7 @@ export class TechStackCalculatorService {
     >();
 
     for (const item of data) {
-      const summary = item.tagSummary as TagSummary;
+      const summary = item.tagSummary;
       const language = summary.metadata?.language || 'unknown';
       const week = this.getISOWeek(item.createdAt);
 
