@@ -144,6 +144,31 @@ enum MentorshipType {
   RECEIVED
 }
 
+enum TechCategory {
+  DATABASE
+  ORM_ODM
+  BACKEND_FRAMEWORK
+  FRONTEND_FRAMEWORK
+  BUILD_TOOL
+  CI_CD
+  CLOUD_SERVICE
+  CONTAINER_ORCHESTRATION
+  TESTING_FRAMEWORK
+  LANGUAGE_RUNTIME
+  API_CLIENT
+  STATE_MANAGEMENT
+  AUTHENTICATION
+  MONITORING
+  MESSAGE_QUEUE
+}
+
+enum MasteryLevel {
+  MENTIONED
+  USED
+  PROFICIENT
+  EXPERT
+}
+
 model AnalysisTagSummary {
   id           String   @id @default(cuid())
   repoFullName String
@@ -183,6 +208,7 @@ model UserProfile {
   mentorshipActivities MentorshipActivity[]
   architecturalLayers  ArchitecturalLayer[]
   effortDistributions  EffortDistribution[]
+  technologyStack      TechnologyStack[]
 }
 
 model CoreMetrics {
@@ -358,5 +384,35 @@ model TwinConversation {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+model TechnologyStack {
+  id            String      @id @default(cuid())
+  userProfileId String
+  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+
+  category            TechCategory
+  name                String
+  version             String?
+  masteryLevel        MasteryLevel
+  implementationScore Int
+  usageCount          Int
+  totalDays           Int
+  weeksActive         Int
+  firstSeen           DateTime
+  lastUsed            DateTime
+
+  evidenceTypes   String[]
+  codePatterns    String[]
+  configFiles     String[]
+  projectContexts String[]
+  relatedTechs    String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userProfileId, category, name])
+  @@index([userProfileId, masteryLevel])
+  @@index([userProfileId, category])
 }
 
