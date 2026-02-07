@@ -34,7 +34,12 @@ export class AstAnalyzerService {
       this.logger.debug(
         `Skipping AST parsing for ${filePath} (extension: ${ext}) — language not supported`,
       );
-      return this.getEmptySummary(filePath, contentHash, sizeBytes, ext.slice(1));
+      return this.getEmptySummary(
+        filePath,
+        contentHash,
+        sizeBytes,
+        ext.slice(1),
+      );
     }
 
     const config = LANGUAGES_CONFIG[langKey];
@@ -71,7 +76,7 @@ export class AstAnalyzerService {
       this.logger.warn(`Parsing ${filePath} took ${durationMs}ms`);
     }
 
-    const matches = this.treeSitter.query(parsed, config.query);
+    const matches = this.treeSitter.query(parsed, config.query, filePath);
 
     const imports: string[] = [];
     const functions: TagDetail[] = [];
@@ -98,7 +103,8 @@ export class AstAnalyzerService {
       }
       if (match.name === 'decorator') decorators.push(match.node.text);
       if (match.name === 'complexity.branch') branchingNodes++;
-      if (match.name === 'comment' && /TODO|FIXME/gi.test(match.node.text)) todoCount++;
+      if (match.name === 'comment' && /TODO|FIXME/gi.test(match.node.text))
+        todoCount++;
     }
 
     const uniqueFunctions = this.deduplicate(functions);

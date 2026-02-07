@@ -139,6 +139,7 @@ export class TreeSitterService {
   query(
     parsedCode: ParsedCode,
     querySource: string,
+    filePath?: string,
   ): Array<{ name: string; node: SyntaxNode }> {
     try {
       const ParserModule = require('tree-sitter');
@@ -163,10 +164,17 @@ export class TreeSitterService {
           results.push({ name: capture.name, node: capture.node });
         }
       }
-
       return results;
     } catch (error) {
-      this.logger.debug(`Query execution failed: ${error.message}`);
+      const errorPosition = this.extractErrorPosition(error.message);
+      const queryPreview = this.getQuerySnippet(querySource, errorPosition);
+
+      this.logger.debug(
+        `Query execution failed for ${filePath || 'unknown file'}:\n` +
+          `  Language: ${parsedCode.language}\n` +
+          `  Error: ${error.message}\n` +
+          `  Query snippet at position ${errorPosition}:\n${queryPreview}`,
+      );
       return [];
     }
   }
@@ -183,7 +191,7 @@ export class TreeSitterService {
     if (!parsed) {
       return [];
     }
-    return this.query(parsed, querySource);
+    return this.query(parsed, querySource, filePath);
   }
 
   /**
@@ -257,5 +265,48 @@ export class TreeSitterService {
       hash = hash & hash; // Convert to 32-bit integer
     }
     return Math.abs(hash).toString(36);
+  }
+
+  /**
+   * Extract error position from Tree-sitter error message
+   */
+  private extractErrorPosition(errorMessage: string): number {
+    const match = errorMessage.match(/position (\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+
+  /**
+   * Get a snippet of the query around the error position
+   */
+  private getQuerySnippet(querySource: string, position: number): string {
+    const start = Math.max(0, position - 100);
+    const end = Math.min(querySource.length, position + 100);
+    const snippet = querySource.substring(start, end);
+    const lines = snippet.split('\n');
+
+    const relativePos = position - start;
+    let currentPos = 0;
+    let errorLine = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const lineLength = lines[i].length + 1;
+      if (currentPos + lineLength > relativePos) {
+        errorLine = i;
+        break;
+      }
+      currentPos += lineLength;
+    }
+
+    const contextStart = Math.max(0, errorLine - 2);
+    const contextEnd = Math.min(lines.length, errorLine + 3);
+    const context = lines.slice(contextStart, contextEnd);
+
+    return context
+      .map((line, idx) => {
+        const lineNum = contextStart + idx;
+        const marker = lineNum === errorLine ? '>>> ' : '    ';
+        return `${marker}${line}`;
+      })
+      .join('\n');
   }
 }

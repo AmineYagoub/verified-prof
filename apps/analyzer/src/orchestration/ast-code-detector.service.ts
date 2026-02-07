@@ -26,12 +26,38 @@ export class AstCodeDetectorService {
     return detectedTechs;
   }
 
+  private isJavaScriptFamily(extension: string): boolean {
+    return ['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs'].includes(
+      extension.toLowerCase(),
+    );
+  }
+
+  private isPython(extension: string): boolean {
+    return extension.toLowerCase() === '.py';
+  }
+
+  private isGo(extension: string): boolean {
+    return extension.toLowerCase() === '.go';
+  }
+
+  private isRust(extension: string): boolean {
+    return extension.toLowerCase() === '.rs';
+  }
+
+  private isPHP(extension: string): boolean {
+    return extension.toLowerCase() === '.php';
+  }
+
   private async detectORMUsageWithAST(file: {
     filename: string;
     content: string;
     extension: string;
   }): Promise<DetectedTechnology[]> {
     const detectedTechs: DetectedTechnology[] = [];
+
+    if (!this.isJavaScriptFamily(file.extension)) {
+      return detectedTechs;
+    }
 
     const prismaCaptures = this.treeSitter.parseAndQuery(
       file.content,
@@ -142,6 +168,10 @@ export class AstCodeDetectorService {
   }): Promise<DetectedTechnology[]> {
     const detectedTechs: DetectedTechnology[] = [];
 
+    if (!this.isJavaScriptFamily(file.extension)) {
+      return detectedTechs;
+    }
+
     const nestjsCaptures = this.treeSitter.parseAndQuery(
       file.content,
       file.filename,
@@ -163,10 +193,14 @@ export class AstCodeDetectorService {
       });
     }
 
+    const isTsxOrJsx = ['.tsx', '.jsx'].includes(file.extension.toLowerCase());
+    const reactQuery = isTsxOrJsx
+      ? QUERIES.REACT_TSX_QUERY
+      : QUERIES.REACT_QUERY;
     const reactCaptures = this.treeSitter.parseAndQuery(
       file.content,
       file.filename,
-      QUERIES.REACT_QUERY,
+      reactQuery,
     );
     if (reactCaptures.length > 0) {
       detectedTechs.push({
@@ -214,6 +248,10 @@ export class AstCodeDetectorService {
     extension: string;
   }): Promise<DetectedTechnology[]> {
     const detectedTechs: DetectedTechnology[] = [];
+
+    if (!this.isJavaScriptFamily(file.extension)) {
+      return detectedTechs;
+    }
 
     const postgresCaptures = this.treeSitter.parseAndQuery(
       file.content,
