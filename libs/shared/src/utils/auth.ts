@@ -75,6 +75,21 @@ export const auth = betterAuth({
             data: withEncryptedTokens,
           };
         },
+        async after(account) {
+          await fetch(
+            `${process.env['NEXT_PUBLIC_WORKER_SERVICE_URL']}/trigger`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                plan: 'FREE',
+                userId: account.userId,
+              }),
+            },
+          );
+        },
       },
       update: {
         async after(account) {
