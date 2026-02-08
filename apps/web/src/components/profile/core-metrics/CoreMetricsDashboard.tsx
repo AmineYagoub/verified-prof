@@ -1,87 +1,92 @@
 'use client';
-
-import { useCoreMetrics } from '../../../hooks/use-core-metrics';
+import {
+  SiTypescript,
+  SiJavascript,
+  SiPython,
+  SiGo,
+  SiRust,
+  SiCplusplus,
+  SiC,
+  SiPhp,
+  SiRuby,
+  SiSwift,
+  SiKotlin,
+  SiSharp,
+  SiReact,
+  SiVuedotjs,
+  SiSvelte,
+  SiScala,
+  SiDart,
+  SiElixir,
+  SiErlang,
+  SiHaskell,
+  SiClojure,
+  SiLua,
+  SiR,
+  SiPerl,
+  SiZig,
+} from '@icons-pack/react-simple-icons';
+import { CoreMetricsApiResponse } from '@verified-prof/shared';
 import { ComplexityMetric } from './ComplexityMetric';
 import { CoreMetricsRadar } from './CoreMetricsRadar';
 import { MetricStat } from './MetricStat';
 import { SpecializationBadge } from './SpecializationBadge';
 
 interface CoreMetricsDashboardProps {
-  userId: string;
+  coreMetrics: CoreMetricsApiResponse;
+  dominantLanguages: string[];
 }
 
-export const CoreMetricsDashboard = ({ userId }: CoreMetricsDashboardProps) => {
-  const { data: metrics, isLoading, error } = useCoreMetrics(userId);
+const getLanguageIcon = (lang: string) => {
+  const lower = lang.toLowerCase();
+  if (lower.includes('react')) return <SiReact className="w-4 h-4" />;
+  if (lower.includes('typescript')) return <SiTypescript className="w-4 h-4" />;
+  if (lower.includes('javascript')) return <SiJavascript className="w-4 h-4" />;
+  if (lower.includes('python')) return <SiPython className="w-4 h-4" />;
+  if (lower.includes('go')) return <SiGo className="w-4 h-4" />;
+  if (lower.includes('rust')) return <SiRust className="w-4 h-4" />;
+  if (lower.includes('c++') || lower.includes('cpp'))
+    return <SiCplusplus className="w-4 h-4" />;
+  if (lower === 'c') return <SiC className="w-4 h-4" />;
+  if (lower.includes('php')) return <SiPhp className="w-4 h-4" />;
+  if (lower.includes('ruby')) return <SiRuby className="w-4 h-4" />;
+  if (lower.includes('swift')) return <SiSwift className="w-4 h-4" />;
+  if (lower.includes('kotlin')) return <SiKotlin className="w-4 h-4" />;
+  if (lower.includes('c#') || lower.includes('csharp'))
+    return <SiSharp className="w-4 h-4" />;
+  if (lower.includes('vue')) return <SiVuedotjs className="w-4 h-4" />;
+  if (lower.includes('svelte')) return <SiSvelte className="w-4 h-4" />;
+  if (lower.includes('scala')) return <SiScala className="w-4 h-4" />;
+  if (lower.includes('dart')) return <SiDart className="w-4 h-4" />;
+  if (lower.includes('elixir')) return <SiElixir className="w-4 h-4" />;
+  if (lower.includes('erlang')) return <SiErlang className="w-4 h-4" />;
+  if (lower.includes('haskell')) return <SiHaskell className="w-4 h-4" />;
+  if (lower.includes('clojure')) return <SiClojure className="w-4 h-4" />;
+  if (lower.includes('lua')) return <SiLua className="w-4 h-4" />;
+  if (lower === 'r') return <SiR className="w-4 h-4" />;
+  if (lower.includes('perl')) return <SiPerl className="w-4 h-4" />;
+  if (lower.includes('zig')) return <SiZig className="w-4 h-4" />;
+  return null;
+};
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <div className="loading loading-spinner loading-lg"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="alert alert-error">
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>
-          Failed to load core metrics. Please try running an analysis first.
-        </span>
-      </div>
-    );
-  }
-
-  if (!metrics) {
-    return (
-      <div className="alert alert-info">
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>
-          Core metrics not yet available. Run your first analysis to generate
-          metrics.
-        </span>
-      </div>
-    );
-  }
-
+export const CoreMetricsDashboard = ({
+  coreMetrics,
+  dominantLanguages,
+}: CoreMetricsDashboardProps) => {
   return (
     <>
-      <section className="flex flex-col lg:flex-row gap-2">
+      <section className="flex flex-col lg:flex-row gap-2 mt-18">
         <SpecializationBadge
-          specialization={metrics.specialization}
-          velocityPercentile={100 - metrics.velocityPercentile}
+          specialization={coreMetrics.specialization}
+          velocityPercentile={100 - coreMetrics.velocityPercentile}
           className="w-full lg:w-1/2"
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full lg:w-1/2">
           <MetricStat
             label="Code Impact"
-            value={metrics.codeImpact}
+            value={coreMetrics.codeImpact}
             description="Functions & classes owned"
-            trend={metrics.trend}
+            trend={coreMetrics.trend}
             icon={
               <svg
                 className="w-5 h-5"
@@ -101,7 +106,7 @@ export const CoreMetricsDashboard = ({ userId }: CoreMetricsDashboardProps) => {
           />
           <MetricStat
             label="Cycle Time"
-            value={`${metrics.cycleTime.toFixed(0)}h`}
+            value={`${coreMetrics.cycleTime.toFixed(0)}h`}
             description="First to last commit"
             icon={
               <svg
@@ -122,19 +127,40 @@ export const CoreMetricsDashboard = ({ userId }: CoreMetricsDashboardProps) => {
           />
         </div>
       </section>
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        <section className="stat bg-base-200 glass">
+          <h3 className="text-lg font-semibold mb-4">Dominant Languages</h3>
+          <div className="flex flex-wrap gap-2">
+            {dominantLanguages.map((lang) => (
+              <div key={lang} className="badge badge-xl gap-2">
+                {getLanguageIcon(lang)}
+                {lang}
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="stat bg-base-200 glass">
+          <h3 className="text-lg font-semibold mb-4">Total Languages</h3>
+          <div className="stat-value text-5xl text-primary">
+            {dominantLanguages.length}
+          </div>
+          <div className="text-sm text-base-content/70 mt-2">
+            Languages in your stack
+          </div>
+        </section>
+      </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-12">
         <CoreMetricsRadar
           data={{
-            velocityPercentile: metrics.velocityPercentile,
-            logicDensity: metrics.logicDensity,
-            systemComplexityScore: metrics.systemComplexityScore,
-            codeImpact: metrics.codeImpact,
-            cycleTime: metrics.cycleTime,
+            velocityPercentile: coreMetrics.velocityPercentile,
+            logicDensity: coreMetrics.logicDensity,
+            systemComplexityScore: coreMetrics.systemComplexityScore,
+            codeImpact: coreMetrics.codeImpact,
+            cycleTime: coreMetrics.cycleTime,
           }}
         />
-
-        <ComplexityMetric value={metrics.systemComplexityScore} />
+        <ComplexityMetric value={coreMetrics.systemComplexityScore} />
       </section>
     </>
   );

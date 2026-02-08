@@ -1,15 +1,10 @@
 'use client';
 
-import { useMissions } from '@verified-prof/web/hooks';
-import { Mission } from '@verified-prof/prisma';
+import { MissionTimeline } from '@verified-prof/shared';
 
 interface MissionTimelineProps {
-  userId: string;
+  missionTimeline: MissionTimeline;
 }
-
-type MissionWithPatterns = Mission & {
-  patterns?: string[];
-};
 
 const getImpactBadgeClass = (impact: string) => {
   switch (impact) {
@@ -59,83 +54,17 @@ const getPatternColor = (pattern: string) => {
   return colors[pattern] || 'badge-ghost';
 };
 
-export const MissionTimeline = ({ userId }: MissionTimelineProps) => {
-  const { data: missions, isLoading, error } = useMissions(userId);
-
-  if (isLoading) {
-    return (
-      <section className="flex items-center justify-center p-12">
-        <div className="loading loading-spinner loading-lg"></div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="alert alert-error">
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>Failed to load mission timeline.</span>
-      </section>
-    );
-  }
-
-  if (!missions || missions.length === 0) {
-    return (
-      <section className="alert alert-info">
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <span>
-          No missions yet. Run your first analysis to generate missions.
-        </span>
-      </section>
-    );
-  }
-
+export const MissionLine = ({ missionTimeline }: MissionTimelineProps) => {
   return (
-    <section className="mt-2">
-      <h2 className="card-title text-2xl">
-        <svg
-          className="w-6 h-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-          />
-        </svg>
-        Mission Timeline
-      </h2>
-
-      <ul className="timeline timeline-vertical timeline-snap-icon">
-        {missions.map((mission, idx) => (
-          <li key={mission.id}>
+    <section className="text-center">
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-[1px] bg-gradient-to-r from-transparent to-white/40" />
+        <h3 className="text-2xl">Verified Mission Timeline</h3>
+        <div className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-white/40" />
+      </div>
+      <ul className="timeline timeline-vertical timeline-snap-icon mt-8">
+        {missionTimeline.missions.map((mission, idx) => (
+          <li key={idx}>
             {idx > 0 && <hr />}
             <div className="timeline-middle">
               <svg
@@ -193,21 +122,20 @@ export const MissionTimeline = ({ userId }: MissionTimelineProps) => {
                     {mission.summary}
                   </p>
 
-                  {(mission as MissionWithPatterns).patterns &&
-                    (mission as MissionWithPatterns).patterns.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {(mission as MissionWithPatterns).patterns.map(
-                          (pattern: string, patIdx: number) => (
-                            <span
-                              key={patIdx}
-                              className={`badge badge-xs ${getPatternColor(pattern)} badge-outline`}
-                            >
-                              {pattern}
-                            </span>
-                          ),
-                        )}
-                      </div>
-                    )}
+                  {mission.patterns && mission.patterns.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {mission.patterns.map(
+                        (pattern: string, patIdx: number) => (
+                          <span
+                            key={patIdx}
+                            className={`badge badge-xs ${getPatternColor(pattern)} badge-outline`}
+                          >
+                            {pattern}
+                          </span>
+                        ),
+                      )}
+                    </div>
+                  )}
 
                   {mission.achievements.length > 0 && (
                     <ul className="space-y-1">
@@ -256,7 +184,7 @@ export const MissionTimeline = ({ userId }: MissionTimelineProps) => {
                 </div>
               </div>
             </div>
-            {idx < missions.length - 1 && <hr />}
+            {idx < missionTimeline.missions.length - 1 && <hr />}
           </li>
         ))}
       </ul>
