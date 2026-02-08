@@ -52,18 +52,12 @@ jobs:
       #     service_name: verified-prof-web
 
       - name: Create Semantic Release
-        id: release
-        uses: semantic-release/semantic-release@v25.0.3
-        with:
-          branches: 'main'
-          tagFormat: 'v${version}'
+        run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get Release Version
-        if: steps.release.outputs.version != ''
-        run: |
-          echo "Release version: ${{ steps.release.outputs.version }}"
+      # Note: semantic-release creates the GitHub release automatically
+      # You can view the version in the job output
 
   # Commented out - semantic-release already creates the GitHub release
   # release:

@@ -33,9 +33,6 @@ jobs:
         run: npm run build
 
       - name: Create Release
-        uses: semantic-release/semantic-release@v25.0.3
-        with:
-          branches: 'main'
-          tagFormat: '${version}'
+        run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
