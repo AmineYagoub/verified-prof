@@ -23,6 +23,7 @@ export const JOB_EVENTS = {
   JOB_FAILED: 'job.failed',
 
   ACCOUNT_UPDATED: 'account.updated',
+  ACCOUNT_CREATED: 'account.created',
 };
 export type JobEventKeys = keyof typeof JOB_EVENTS;
 export * from './jobs/trigger-analyzer.event';
@@ -30,5 +31,6 @@ export * from './jobs/tag-summary.event';
 export * from './jobs/job-progress.event';
 export * from './jobs/job-stage-progress.event';
 export * from './jobs/analysis-persisted.event';
+export * from './jobs/account-created.event';
 export * from './missions/mission-generation-requested.event';
 export * from './leadership/architectural-layer-requested.event';
