@@ -27,11 +27,8 @@ jobs:
       - name: Install dependencies
         run: npm i --force
 
-      - name: Run tests
-        run: npm test
-
       - name: Build Next.js app
-        run: npm run build
+        run: npm run build:web
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 

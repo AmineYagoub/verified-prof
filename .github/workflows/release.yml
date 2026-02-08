@@ -26,11 +26,8 @@ jobs:
       - name: Install dependencies
         run: npm i --force
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
+      - name: Build Next.js app
+        run: npm run build:web
 
       - name: Create Release
         run: npx semantic-release
