@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DbModule } from '@verified-prof/prisma';
 import { TechStackDnaService } from './services/tech-stack-dna.service';
-import { TechStackController } from './tech-stack.controller';
 import { TechStackCalculatorService } from './services/tech-stack-calculator.service';
 import { TechDetectionService } from './services/tech-detection.service';
 import { ConfigFileDetectorService } from './services/config-file-detector.service';
@@ -13,7 +12,7 @@ import { AnalyzerModule } from '../orchestration/analyzer.module';
 
 @Module({
   imports: [DbModule, AiModule, AnalyzerModule],
-  controllers: [TechStackController],
+  controllers: [],
   providers: [
     TechStackDnaService,
     TechStackCalculatorService,

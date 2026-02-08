@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '@verified-prof/prisma';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
 import {
   TechStackDNA,
   LanguageExpertise,
@@ -8,8 +8,6 @@ import {
   JOB_EVENTS,
   AnalysisPersistedEvent,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
 } from '@verified-prof/shared';
 import { TechStackCalculatorService } from './tech-stack-calculator.service';
 

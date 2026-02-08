@@ -6,13 +6,11 @@ import {
   AnalysisPersistedEvent,
   TagSummary,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
 } from '@verified-prof/shared';
-import { PrismaService } from '@verified-prof/prisma';
+import { PrismaService, JobStage, JobStatus } from '@verified-prof/prisma';
 import { ConfigFileDetectorService } from './config-file-detector.service';
 import { InfrastructureDetectorService } from './infrastructure-detector.service';
-import { AstCodeDetectorService } from '../../orchestration/ast-code-detector.service';
+import { AstCodeDetectorService } from '../../orchestration/services/ast-code-detector.service';
 import { TechEvidenceAggregatorService } from './tech-evidence-aggregator.service';
 import { DetectedTechnology } from '../types/tech-detection.types';
 import { TechStackPersisterService } from './tech-stack-persister.service';
