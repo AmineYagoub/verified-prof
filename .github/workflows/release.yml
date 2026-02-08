@@ -33,7 +33,7 @@ jobs:
         run: npm run build
 
       - name: Create Release
-        uses: semantic-release/semantic-release@v24
+        uses: semantic-release/semantic-release@v25.0.3
         with:
           branches: 'main'
           tagFormat: '${version}'
