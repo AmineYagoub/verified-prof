@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Session } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { UserSession } from '@thallesp/nestjs-better-auth';
+import { OptionalAuth, UserSession } from '@thallesp/nestjs-better-auth';
 import {
   AnalysisTriggeredEvent,
   AnalysisTriggerRequestDto,
@@ -12,13 +12,18 @@ export class AppController {
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
   @Post('trigger')
+  @OptionalAuth()
   async triggerAnalysis(
     @Body() body: AnalysisTriggerRequestDto,
     @Session() session: UserSession,
-  ): Promise<{ status: 'accepted' }> {
+  ): Promise<{ status: 'accepted' | 'rejected' }> {
+    const userId = session?.user?.id ?? body.userId;
+    if (!userId) {
+      return { status: 'rejected' };
+    }
     this.eventEmitter.emit(
       JOB_EVENTS.ANALYSIS_TRIGGERED,
-      new AnalysisTriggeredEvent(body.plan, session.user.id),
+      new AnalysisTriggeredEvent(body.plan, userId),
     );
     return { status: 'accepted' };
   }
