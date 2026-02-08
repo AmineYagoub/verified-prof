@@ -2,7 +2,6 @@ export type SeniorityRank = 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
 export type Trend = 'IMPROVING' | 'STABLE' | 'DECLINING';
 export type LearningCurveTrend = 'Exponential' | 'Steady' | 'Specialist';
 export type MissionImpact = 'Infrastructure' | 'Feature' | 'Refactor' | 'Fix';
-export type MentorshipType = 'GIVEN' | 'RECEIVED';
 
 import { TechnologyStackResponse } from './technology-stack';
 
@@ -13,10 +12,10 @@ export interface CoreMetricsApiResponse {
   logicDensity: number;
   systemComplexityScore: number;
   velocityPercentile: number;
-  seniorityRank: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
+  seniorityRank: SeniorityRank;
   specialization: string;
   sTierVerificationHash: string;
-  trend: 'IMPROVING' | 'STABLE' | 'DECLINING' | null;
+  trend: Trend | null;
   periodStart: string | null;
   periodEnd: string | null;
   lastVerifiedAt: string | null;
@@ -48,7 +47,7 @@ export interface TechStackDNA {
 }
 
 export interface Mission {
-  week: string;
+  id: string;
   date: string;
   impact: MissionImpact;
   title: string;
@@ -67,76 +66,18 @@ export interface MissionTimeline {
   missions: Mission[];
 }
 
-export interface CognitivePattern {
-  pattern: string;
-  frequency: number;
-  examples: string[];
-}
-
-export interface CognitiveStyle {
-  codingPhilosophy: string;
-  strengths: string[];
-  mentalModel: string;
-  abstractionLevel: number;
-  consistencyScore: number;
-  namingQuality: number;
-  documentationRatio: number;
-  preferredPatterns: CognitivePattern[];
-}
-
-export interface MentorshipActivity {
-  type: MentorshipType;
-  prNumber: number;
-  repository: string;
-  commentCount: number;
-  depth: number;
-  date: string;
-}
-
-export interface MentorshipRatio {
-  reviewQualityScore: number;
-  knowledgeSharingIndex: number;
-  topAdviceTag: string;
-  mentorshipRatio: number;
-  reviewsGiven: number;
-  reviewsReceived: number;
-  topMentees: string[];
-  topMentors: string[];
-  recentActivity: MentorshipActivity[];
-}
-
-export interface ChurnHotspot {
-  filePath: string;
-  churnCount: number;
-  lastModified: string;
-  stabilized: boolean;
-}
-
-export interface ReliabilityScore {
-  codeSurvivalRate: number;
-  bugDensity: number;
-  refactorResistance: number;
-  refactorRatio: number;
-  modularityScore: number;
-  churnStabilization: number;
-  hotspots: ChurnHotspot[];
-  architecturalDecisions: string[];
-  avgFileLifespan: number;
-}
-
 export interface UserProfileResponse {
   userId: string;
   name: string;
   image: string | null;
+  slug?: string;
+  bio?: string;
   lastAnalyzedAt?: string;
   analysisProgress?: number;
   coreMetrics?: CoreMetricsApiResponse;
   techStackDNA?: TechStackDNA;
   technologyStack?: TechnologyStackResponse[];
   missionTimeline?: MissionTimeline;
-  cognitiveStyle?: CognitiveStyle;
-  mentorshipRatio?: MentorshipRatio;
-  reliabilityScore?: ReliabilityScore;
 }
 
 export interface ProfileAvatarUploadResult {
