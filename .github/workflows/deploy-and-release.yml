@@ -10,7 +10,7 @@ permissions:
   id-token: write
 
 jobs:
-  deploy-and-release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,55 +32,55 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      # Commented out for testing releases only
-      # - name: Authenticate to Google Cloud
-      #   uses: google-github-actions/auth@v2
-      #   with:
-      #     workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      #     service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    # Comment out the next line to enable deployment
+    if: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # - name: Deploy to Cloud Run
-      #   id: deploy
-      #   uses: google-github-actions/deploy-cloudrun@v3
-      #   with:
-      #     source: ./apps/web
-      #     region: us-central1
-      #     project_id: ${{ secrets.GCP_PROJECT_ID }}
-      #     service_name: verified-prof-web
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          source: ./apps/web
+          region: us-central1
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_name: verified-prof-web
+
+      - name: Export deployment outputs
+        run: |
+          echo "service_url=${{ steps.deploy.outputs.url }}" >> $GITHUB_OUTPUT
+          echo "revision=${{ steps.deploy.outputs.revision }}" >> $GITHUB_OUTPUT
+        id: deploy-info
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    if: always() && needs.build.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install semantic-release dependencies
+        run: npm i --force
 
       - name: Create Semantic Release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Note: semantic-release creates the GitHub release automatically
-      # You can view the version in the job output
-
-  # Commented out - semantic-release already creates the GitHub release
-  # release:
-  #   runs-on: ubuntu-latest
-  #   needs: deploy-and-release
-  #   if: needs.deploy-and-release.outputs.version != ''
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Create Release
-  #       uses: softprops/action-gh-release@v2
-  #       with:
-  #         body: |
-  #           ## Release ${{ needs.deploy-and-release.outputs.version }}
-  #
-  #           ### Deployed to Cloud Run
-  #           - Service URL: ${{ needs.deploy-and-release.steps.deploy.outputs.url }}
-  #           - Region: us-central1
-  #           - Revision: ${{ needs.deploy-and-release.steps.deploy.outputs.revision }}
-  #
-  #           ### Deployment Info
-  #           - Commit: ${{ github.sha }}
-  #           - Branch: ${{ github.ref_name }}
-  #         generate_release_notes: true
-  #         draft: false
-  #         prerelease: false
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
