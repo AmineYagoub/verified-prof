@@ -1,16 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '@verified-prof/prisma';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
 import {
   JOB_EVENTS,
   TagSummary,
   AnalysisPersistedEvent,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
 } from '@verified-prof/shared';
 import { GeminiService } from './gemini-client.service';
-import { generateCoreMetricsPrompt } from './prompts/core-metrics.prompt';
+import { generateCoreMetricsPrompt } from '../prompts/core-metrics.prompt';
 
 @Injectable()
 export class AiService {
@@ -43,7 +41,6 @@ export class AiService {
 
     try {
       await this.analyzeWeeklyBatch(event.userId, event.weekStart, event);
-
       this.em.emit(
         JOB_EVENTS.JOB_STAGE_PROGRESS,
         new JobStageProgressEvent(
@@ -63,21 +60,13 @@ export class AiService {
     weekStart: string,
     event: AnalysisPersistedEvent,
   ) => {
-    this.logger.log(
-      `Analyzing ${event.commitShas.length} commits for week ${weekStart}`,
-    );
-
     if (!event.tagSummaries || event.tagSummaries.length === 0) {
       this.logger.warn('No tag summaries in event, skipping analysis');
       return;
     }
-
     const weeklyTags = event.tagSummaries.map(
       (t) => t.tagSummary as unknown as TagSummary,
     );
-
-    this.logger.log(`Processing ${weeklyTags.length} tag summaries`);
-
     await this.analyzeCoreMetrics(userId, weekStart, weeklyTags, event);
   };
 
@@ -96,11 +85,7 @@ export class AiService {
       pullRequestReviews: event.pullRequestReviews,
       commitMetadata: event.commitMetadata,
     });
-
-    this.logger.debug('Calling Gemini for core metrics');
-
     const fullPrompt = `${prompt.systemPrompt}\n\n${prompt.userPrompt}`;
-
     const metrics = await this.gemini.generateJSON<{
       codeImpact: number;
       cycleTime: number;
@@ -109,12 +94,10 @@ export class AiService {
       velocityPercentile: number;
       seniorityRank: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
       specialization: string;
+      bio: string;
       sTierVerificationHash: string;
       trend: 'IMPROVING' | 'STABLE' | 'DECLINING' | null;
     }>(fullPrompt, prompt.jsonSchema);
-
-    this.logger.log(`Core metrics generated: ${JSON.stringify(metrics)}`);
-
     await this.persistCoreMetrics(userId, metrics);
   };
 
@@ -128,6 +111,7 @@ export class AiService {
       velocityPercentile: number;
       seniorityRank: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Principal';
       specialization: string;
+      bio: string;
       sTierVerificationHash: string;
       trend: 'IMPROVING' | 'STABLE' | 'DECLINING' | null;
     },
@@ -136,10 +120,12 @@ export class AiService {
       where: { userId },
       update: {
         lastAnalyzedAt: new Date(),
+        bio: metrics.bio,
       },
       create: {
         userId,
         lastAnalyzedAt: new Date(),
+        bio: metrics.bio,
       },
     });
 

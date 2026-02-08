@@ -1,12 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
-import { PrismaService } from '@verified-prof/prisma';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
 import {
   JOB_EVENTS,
   ArchitecturalLayerRequestedEvent,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
 } from '@verified-prof/shared';
 import { LeadershipAiService } from './leadership-ai.service';
 

@@ -127,8 +127,9 @@ Analyze the tree-sitter AST results and collaboration data above to return JSON 
    - **Top Imported Libraries** reveals tech stack (react/vue = Frontend, express/fastapi = Backend, docker/kubernetes = DevOps, tensorflow/pytorch = ML)
    - **Commit Domain Signals** confirms specialization (DevOps, Backend, Frontend, ML, Testing, Security)
    - Format: "{SeniorityRank} {Specialization}" (e.g., "Senior TypeScript", "Staff Backend Engineer", "Principal DevOps", "Mid Full-Stack")
-8. **sTierVerificationHash**: Generate a SHA-256 hash (64 chars hex)
-9. **trend**: Set to null for first analysis
+8. **bio**: Generate a concise professional bio (maximum 20 words) highlighting the developer's specialization and seniority. Make it factual and direct without encouraging any specific action.
+9. **sTierVerificationHash**: Generate a SHA-256 hash (64 chars hex)
+10. **trend**: Set to null for first analysis
 
 Return ONLY valid JSON matching the schema below.
 `,
@@ -143,6 +144,7 @@ Return ONLY valid JSON matching the schema below.
         'velocityPercentile',
         'seniorityRank',
         'specialization',
+        'bio',
         'sTierVerificationHash',
       ],
       properties: {
@@ -161,6 +163,12 @@ Return ONLY valid JSON matching the schema below.
           maxLength: 50,
           description:
             'Technology-specific seniority (e.g., "Senior TypeScript", "Staff Backend", "Principal DevOps")',
+        },
+        bio: {
+          type: 'string',
+          maxLength: 150,
+          description:
+            'Professional bio (max 20 words) highlighting specialization and seniority',
         },
         sTierVerificationHash: { type: 'string', minLength: 64, maxLength: 64 },
         trend: {

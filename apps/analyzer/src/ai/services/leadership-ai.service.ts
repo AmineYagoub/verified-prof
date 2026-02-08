@@ -4,12 +4,12 @@ import {
   CommitSummary,
   CategorizedCommit,
   createCommitCategorizationPrompt,
-} from './prompts/categorize-commits.prompt';
+} from '../prompts/categorize-commits.prompt';
 import {
   FileWithMetadata,
   ArchitecturalLayerResult,
   createArchitecturalLayersPrompt,
-} from './prompts/architectural-layers.prompt';
+} from '../prompts/architectural-layers.prompt';
 
 @Injectable()
 export class LeadershipAiService {
