@@ -1,13 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from '@verified-prof/prisma';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
 import {
   AnalysisPersistedEvent,
   ArchitecturalLayerRequestedEvent,
   JOB_EVENTS,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
 } from '@verified-prof/shared';
 
 @Injectable()
