@@ -152,10 +152,6 @@ Strengths: ${this.identifyStrengths(stack.languages)}`;
     const heroMissions = profile.missionTimeline.missions.filter(
       (m) => m.isHeroMission,
     );
-    const regularMissions = profile.missionTimeline.missions.filter(
-      (m) => !m.isHeroMission,
-    );
-
     const missions = profile.missionTimeline.missions
       .slice(0, 6)
       .map((mission, idx) => {

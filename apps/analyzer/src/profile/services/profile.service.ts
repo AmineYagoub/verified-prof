@@ -1,13 +1,60 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
+  AccountCreatedEvent,
   CoreMetricsApiResponse,
+  JOB_EVENTS,
   UserProfileResponse,
 } from '@verified-prof/shared';
 
 @Injectable()
 export class ProfileService {
   constructor(private readonly prisma: PrismaService) {}
+
+  @OnEvent(JOB_EVENTS.ACCOUNT_CREATED, { async: true })
+  async handleAccountCreated(event: AccountCreatedEvent) {
+    const uniqueSlug = await this.resolveUniqueSlug(
+      event.username,
+      event.userId,
+    );
+    if (uniqueSlug) {
+      await this.prisma.client.userProfile.upsert({
+        where: { userId: event.userId },
+        create: {
+          userId: event.userId,
+          slug: uniqueSlug,
+        },
+        update: {
+          slug: uniqueSlug,
+        },
+      });
+    }
+  }
+
+  private async resolveUniqueSlug(
+    baseSlug: string,
+    userId: string,
+  ): Promise<string | null> {
+    const existingProfile = await this.prisma.client.userProfile.findUnique({
+      where: { slug: baseSlug },
+    });
+    if (!existingProfile) {
+      return baseSlug;
+    }
+    if (existingProfile.userId === userId) {
+      return null;
+    }
+    const randomSuffix = Math.random().toString(36).substring(2, 6);
+    const newSlug = `${baseSlug}-${randomSuffix}`;
+    const slugExists = await this.prisma.client.userProfile.findUnique({
+      where: { slug: newSlug },
+    });
+    if (slugExists) {
+      return this.resolveUniqueSlug(baseSlug, userId);
+    }
+    return newSlug;
+  }
 
   async getCoreMetrics(userId: string): Promise<CoreMetricsApiResponse> {
     const profile = await this.prisma.client.userProfile.findUnique({
@@ -56,11 +103,11 @@ export class ProfileService {
   }
 
   async getUserBySlug(slug: string) {
-    return this.prisma.client.user.findFirst({
-      where: {
-        OR: [{ id: slug }, { name: slug }],
-      },
+    const userBySlug = await this.prisma.client.userProfile.findUnique({
+      where: { slug },
+      select: { user: true },
     });
+    return userBySlug.user;
   }
 
   async saveConversation(data: {

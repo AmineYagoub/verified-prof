@@ -10,16 +10,16 @@ import {
   BadRequestException,
   Delete,
 } from '@nestjs/common';
-import { ProfileService } from './profile.service';
+import { ProfileService } from './services/profile.service';
 import {
   auth,
   CoreMetricsApiResponse,
   UserProfileResponse,
 } from '@verified-prof/shared';
-import { ProfileAvatarService } from './avatar.service';
-import { ProfileAggregatorService } from './profile-aggregator.service';
-import { ContextBuilderService } from './context-builder.service';
-import { GeminiService } from '../ai/gemini-client.service';
+import { ProfileAvatarService } from './services/avatar.service';
+import { ProfileAggregatorService } from './services/profile-aggregator.service';
+import { ContextBuilderService } from './services/context-builder.service';
+import { GeminiService } from '../ai/services/gemini-client.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Session, UserSession } from '@thallesp/nestjs-better-auth';
 import { OptionalAuth } from '@thallesp/nestjs-better-auth';
@@ -44,11 +44,6 @@ export class ProfileController {
     return this.profileService.getCoreMetrics(userId);
   }
 
-  @Get('me')
-  async getCurrentUserProfile(@Session() session: UserSession) {
-    return await this.profileService.getProfileByUserId(session.user.id);
-  }
-
   @Get(':slug')
   @OptionalAuth()
   async getPublicProfile(
@@ -62,20 +57,13 @@ export class ProfileController {
   async getVoiceTwinToken(@Param('slug') slug: string) {
     const profile = await this.aggregatorService.getFullProfile(slug);
     const context = this.contextBuilder.buildVoiceTwinContext(profile);
-
     const voiceName = this.selectVoiceForProfile(profile);
-
     const tokenData = await this.geminiService.createEphemeralToken({
       systemInstruction: context,
       temperature: 0.7,
       voiceName,
       thinkingBudget: 2048,
     });
-
-    this.logger.log(
-      `Created voice twin token for profile: ${slug}, voice: ${voiceName}, expires at: ${tokenData.expiresAt}`,
-    );
-
     return { ...tokenData, voiceName, sessionDurationMinutes: 15 };
   }
 
@@ -83,15 +71,19 @@ export class ProfileController {
   @OptionalAuth()
   async saveConversation(
     @Param('slug') slug: string,
-    @Req() req: Request & { body: { transcript: any[]; duration: number } },
+    @Req()
+    req: Request & {
+      body: {
+        transcript: { speaker: string; text: string }[];
+        duration: number;
+      };
+    },
   ) {
     const { transcript, duration } = req.body;
-
     const user = await this.profileService.getUserBySlug(slug);
     if (!user) {
       throw new BadRequestException('User not found');
     }
-
     const transcriptText = transcript
       .map((entry) => `[${entry.speaker}]: ${entry.text}`)
       .join('\n\n');
@@ -103,11 +95,6 @@ export class ProfileController {
       startedAt: new Date(Date.now() - duration * 1000),
       endedAt: new Date(),
     });
-
-    this.logger.log(
-      `Saved voice twin conversation for ${slug}: ${duration}s, ${transcript.length} messages`,
-    );
-
     return { success: true };
   }
 

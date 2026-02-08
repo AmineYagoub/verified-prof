@@ -1,13 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@verified-prof/prisma';
 import {
-  UserProfileResponse,
   CoreMetricsApiResponse,
-  TechStackDNA,
-  MissionTimeline,
   LanguageExpertise,
-  WeeklyIntensity,
+  MissionTimeline,
   TechnologyStackResponse,
+  TechStackDNA,
+  UserProfileResponse,
+  WeeklyIntensity,
 } from '@verified-prof/shared';
 
 @Injectable()
@@ -17,19 +17,10 @@ export class ProfileAggregatorService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getFullProfile(slug: string): Promise<UserProfileResponse> {
-    const user = await this.prisma.client.user.findFirst({
-      where: {
-        OR: [{ id: slug }, { name: slug }],
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException(`User profile not found: ${slug}`);
-    }
-
     const userProfile = await this.prisma.client.userProfile.findUnique({
-      where: { userId: user.id },
+      where: { slug },
       include: {
+        user: true,
         coreMetrics: true,
         techStackDNA: true,
         languageExpertises: {
@@ -59,20 +50,20 @@ export class ProfileAggregatorService {
         },
       },
     });
-
     if (!userProfile) {
       throw new NotFoundException(
         `Profile data not yet generated for user ${slug}. Run analysis first.`,
       );
     }
-
     return {
-      userId: user.id,
-      name: user.name || 'Anonymous',
-      image: user.image || null,
+      userId: userProfile.user.id,
+      name: userProfile.user.name || 'Anonymous',
+      image: userProfile.user.image || null,
+      slug: userProfile.slug || undefined,
+      bio: userProfile.bio || undefined,
       lastAnalyzedAt: userProfile.lastAnalyzedAt?.toISOString(),
       coreMetrics: userProfile.coreMetrics
-        ? this.mapCoreMetrics(user.id, userProfile.coreMetrics)
+        ? this.mapCoreMetrics(userProfile.user.id, userProfile.coreMetrics)
         : undefined,
       techStackDNA: userProfile.techStackDNA
         ? this.mapTechStackDNA(userProfile.techStackDNA)
@@ -163,7 +154,7 @@ export class ProfileAggregatorService {
   ): MissionTimeline {
     return {
       missions: missions.map((m) => ({
-        week: '',
+        id: String(m.id),
         date: (m.date as Date)?.toISOString() || new Date().toISOString(),
         impact:
           (m.impact as 'Infrastructure' | 'Feature' | 'Refactor' | 'Fix') ||
