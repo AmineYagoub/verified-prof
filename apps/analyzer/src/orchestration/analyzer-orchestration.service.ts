@@ -4,7 +4,9 @@ import { VcsProviderFactory } from '../providers/vcs-provider.factory';
 import {
   AnalysisTriggeredEvent,
   JOB_EVENTS,
-  JobProgressEvent,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
   MissionEvent,
   PLAN_POLICIES,
   PlanPolicy,
@@ -28,8 +30,8 @@ export class AnalyzerOrchestrationService {
   @OnEvent(JOB_EVENTS.ANALYSIS_TRIGGERED, { async: true })
   async handleAnalysisTriggered(event: AnalysisTriggeredEvent) {
     try {
-      await this.deleteAllDataForUser(event.userId);
       const { userId, plan } = event;
+      await this.deleteAllDataForUser(userId);
       const policy: PlanPolicy = PLAN_POLICIES[plan] ?? PLAN_POLICIES.FREE;
       const provider = await this.providerFactory.createProviderForUser(
         userId,
@@ -94,43 +96,36 @@ export class AnalyzerOrchestrationService {
             ),
           );
           processedCommits++;
-          const progress = this.calculateProgress(
-            processedCommits,
-            totalCommits,
+          const commitProgress =
+            10 + Math.round((processedCommits / totalCommits) * 20);
+          this.em.emit(
+            JOB_EVENTS.JOB_STAGE_PROGRESS,
+            new JobStageProgressEvent(
+              userId,
+              JobStatus.RUNNING,
+              JobStage.ANALYZING_COMMITS,
+              commitProgress,
+            ),
           );
-          const ev = new JobProgressEvent(
-            userId,
-            progress,
-            processedCommits,
-            totalCommits,
-          );
-          this.logger.debug(
-            `Emitting job progress: ${JSON.stringify(ev, null, 2)}`,
-          );
-          this.em.emit(JOB_EVENTS.JOB_PROGRESS, ev);
         }
       }
-
       this.em.emit(JOB_EVENTS.ANALYSIS_TAG_SUMMARY, missionEvents);
     } catch (error) {
       this.logger.error(
         `Failed to handle analysis triggered event for user ${event.userId}`,
         error,
       );
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          event.userId,
+          JobStatus.FAILED,
+          JobStage.ANALYZING_COMMITS,
+          0,
+          error instanceof Error ? error.message : 'Unknown error',
+        ),
+      );
     }
-  }
-
-  /**
-   * Calculate a progress percentage based on processed and total item counts.
-   *
-   *
-   * @param processed - Number of items that have been processed.
-   * @param total - Total number of items to process.
-   * @returns An integer percentage (rounded) representing progress, bounded above by 100.
-   */
-  private calculateProgress(processed: number, total: number): number {
-    if (total <= 0) return 100;
-    return Math.min(100, Math.round((processed / total) * 100));
   }
 
   private async deleteAllDataForUser(userId: string): Promise<void> {

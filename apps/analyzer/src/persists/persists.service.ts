@@ -6,7 +6,9 @@ import {
   CodeOwnershipDto,
   CommitMetadataDto,
   JOB_EVENTS,
-  JobProgressEvent,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
   MissionEvent,
   PullRequestReviewDto,
   VcsProviderType,
@@ -44,6 +46,16 @@ export class PersistsService {
 
     if (allSummaries.length > 0) {
       userId = allSummaries[0].userId;
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          userId,
+          JobStatus.RUNNING,
+          JobStage.PERSISTING_DATA,
+          35,
+        ),
+      );
+
       const uniqueCommitShas = new Set<string>();
       for (const summary of allSummaries) {
         uniqueCommitShas.add(summary.commitSha);
@@ -113,6 +125,18 @@ export class PersistsService {
       tagSummaries: persistedSummaries,
       ...collaborationData,
     });
+
+    if (userId) {
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          userId,
+          JobStatus.RUNNING,
+          JobStage.PERSISTING_DATA,
+          40,
+        ),
+      );
+    }
   }
 
   private getISOWeek(date: Date): string {
@@ -131,11 +155,6 @@ export class PersistsService {
       .update(email.toLowerCase())
       .digest('hex')
       .substring(0, 16);
-  }
-
-  @OnEvent(JOB_EVENTS.JOB_PROGRESS, { async: true })
-  async handleJobProgress(event: JobProgressEvent) {
-    this.logger.debug('Handling job progress event:', event);
   }
 
   private extractRepoMetadata(

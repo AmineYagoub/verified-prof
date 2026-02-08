@@ -71,7 +71,6 @@ export class ProfileAggregatorService {
       name: user.name || 'Anonymous',
       image: user.image || null,
       lastAnalyzedAt: userProfile.lastAnalyzedAt?.toISOString(),
-      analysisProgress: userProfile.analysisProgress || 0,
       coreMetrics: userProfile.coreMetrics
         ? this.mapCoreMetrics(user.id, userProfile.coreMetrics)
         : undefined,

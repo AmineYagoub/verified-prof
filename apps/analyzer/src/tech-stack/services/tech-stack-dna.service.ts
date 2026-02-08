@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
   TechStackDNA,
@@ -7,6 +7,9 @@ import {
   LearningCurveTrend,
   JOB_EVENTS,
   AnalysisPersistedEvent,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
 } from '@verified-prof/shared';
 import { TechStackCalculatorService } from './tech-stack-calculator.service';
 
@@ -48,6 +51,7 @@ export class TechStackDnaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly calculator: TechStackCalculatorService,
+    private readonly em: EventEmitter2,
   ) {}
 
   private isProgrammingLanguage(language: string): boolean {
@@ -114,10 +118,30 @@ export class TechStackDnaService {
       return;
     }
 
+    this.em.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        event.userId,
+        JobStatus.RUNNING,
+        JobStage.TECH_STACK_DNA,
+        55,
+      ),
+    );
+
     try {
       await this.generateTechStackDNA(event.userId, event);
       this.logger.log(
         `Tech Stack DNA generated successfully for user ${event.userId}`,
+      );
+
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          event.userId,
+          JobStatus.RUNNING,
+          JobStage.TECH_STACK_DNA,
+          60,
+        ),
       );
     } catch (error) {
       this.logger.error(

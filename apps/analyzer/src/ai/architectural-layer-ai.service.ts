@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
   JOB_EVENTS,
   ArchitecturalLayerRequestedEvent,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
 } from '@verified-prof/shared';
 import { LeadershipAiService } from './leadership-ai.service';
 
@@ -14,6 +17,7 @@ export class ArchitecturalLayerAiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly leadershipAi: LeadershipAiService,
+    private readonly em: EventEmitter2,
   ) {}
 
   @OnEvent(JOB_EVENTS.ARCHITECTURAL_LAYER_REQUESTED, { async: true })
@@ -21,6 +25,16 @@ export class ArchitecturalLayerAiService {
     event: ArchitecturalLayerRequestedEvent,
   ): Promise<void> {
     const { userId, userProfileId, fileMetadata } = event;
+
+    this.em.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        userId,
+        JobStatus.RUNNING,
+        JobStage.ARCHITECTURE_LAYER,
+        77,
+      ),
+    );
 
     this.logger.log(`Generating architectural layers for user ${userId}`);
 
@@ -31,6 +45,16 @@ export class ArchitecturalLayerAiService {
 
     this.logger.log(
       `Architectural layers persisted for user ${userId} (${layers.length} layers)`,
+    );
+
+    this.em.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        userId,
+        JobStatus.COMPLETED,
+        JobStage.ARCHITECTURE_LAYER,
+        100,
+      ),
     );
   }
 

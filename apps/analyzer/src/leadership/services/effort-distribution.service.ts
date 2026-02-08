@@ -84,6 +84,7 @@ export class EffortDistributionService {
     if (!userId || !commitMetadata || commitMetadata.length === 0) {
       return;
     }
+
     await this.generateAndPersist(userId, commitMetadata);
   }
 

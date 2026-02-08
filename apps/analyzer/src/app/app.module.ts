@@ -14,6 +14,7 @@ import { ProfileModule } from '../profile/profile.module';
 import { TechStackModule } from '../tech-stack/tech-stack.module';
 import { MissionsModule } from '../missions/missions.module';
 import { LeadershipModule } from '../leadership/leadership.module';
+import { ProgressModule } from '../progress/progress.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { LeadershipModule } from '../leadership/leadership.module';
     TechStackModule,
     MissionsModule,
     LeadershipModule,
+    ProgressModule,
   ],
   controllers: [HealthController],
   providers: [],

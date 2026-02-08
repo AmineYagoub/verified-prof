@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import {
   CommitDetails,
   JOB_EVENTS,
   AnalysisPersistedEvent,
   TagSummary,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
 } from '@verified-prof/shared';
 import { PrismaService } from '@verified-prof/prisma';
 import { ConfigFileDetectorService } from './config-file-detector.service';
@@ -25,10 +28,21 @@ export class TechDetectionService {
     private readonly astCodeDetector: AstCodeDetectorService,
     private readonly evidenceAggregator: TechEvidenceAggregatorService,
     private readonly stackPersister: TechStackPersisterService,
+    private readonly em: EventEmitter2,
   ) {}
 
   @OnEvent(JOB_EVENTS.ANALYSIS_PERSISTED)
   async handleAnalysisPersisted(event: AnalysisPersistedEvent) {
+    this.em.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        event.userId,
+        JobStatus.RUNNING,
+        JobStage.TECH_DETECTION,
+        61,
+      ),
+    );
+
     try {
       const userProfile = await this.prisma.client.userProfile.findUnique({
         where: { userId: event.userId },
@@ -42,6 +56,16 @@ export class TechDetectionService {
       }
       const commits = this.groupByCommit(event.tagSummaries);
       await this.detectAllTechnologies(commits, userProfile.id);
+
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          event.userId,
+          JobStatus.RUNNING,
+          JobStage.TECH_DETECTION,
+          65,
+        ),
+      );
     } catch (error) {
       this.logger.error(
         `Technology detection failed for user ${event.userId}`,

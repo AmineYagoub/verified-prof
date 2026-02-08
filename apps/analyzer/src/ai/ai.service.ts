@@ -1,10 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
   JOB_EVENTS,
   TagSummary,
   AnalysisPersistedEvent,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
 } from '@verified-prof/shared';
 import { GeminiService } from './gemini-client.service';
 import { generateCoreMetricsPrompt } from './prompts/core-metrics.prompt';
@@ -16,6 +19,7 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gemini: GeminiService,
+    private readonly em: EventEmitter2,
   ) {}
 
   @OnEvent(JOB_EVENTS.ANALYSIS_PERSISTED, { async: true })
@@ -27,8 +31,28 @@ export class AiService {
       return;
     }
 
+    this.em.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        event.userId,
+        JobStatus.RUNNING,
+        JobStage.AI_ANALYSIS,
+        66,
+      ),
+    );
+
     try {
       await this.analyzeWeeklyBatch(event.userId, event.weekStart, event);
+
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          event.userId,
+          JobStatus.RUNNING,
+          JobStage.AI_ANALYSIS,
+          75,
+        ),
+      );
     } catch (error) {
       this.logger.error('Failed to analyze weekly batch', error);
     }
@@ -112,12 +136,10 @@ export class AiService {
       where: { userId },
       update: {
         lastAnalyzedAt: new Date(),
-        analysisProgress: 20,
       },
       create: {
         userId,
         lastAnalyzedAt: new Date(),
-        analysisProgress: 20,
       },
     });
 

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
-import { JOB_EVENTS, AnalysisPersistedEvent } from '@verified-prof/shared';
+import { JOB_EVENTS, AnalysisPersistedEvent, JobStageProgressEvent, JobStage, JobStatus } from '@verified-prof/shared';
 import { MissionCalculatorService } from './mission-calculator.service';
 import { CommitContext, MissionTagSummary } from '../types/mission.types';
 
@@ -31,6 +31,17 @@ export class MissionsService {
   @OnEvent(JOB_EVENTS.ANALYSIS_PERSISTED)
   async handleAnalysisPersisted(event: AnalysisPersistedEvent) {
     const { userId, weekStart } = event;
+
+    this.eventEmitter.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        userId,
+        JobStatus.RUNNING,
+        JobStage.GENERATING_MISSIONS,
+        45,
+      ),
+    );
+
     try {
       await this.generateMissions(userId, weekStart, event);
     } catch (error) {

@@ -5,6 +5,9 @@ import {
   AnalysisPersistedEvent,
   ArchitecturalLayerRequestedEvent,
   JOB_EVENTS,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
 } from '@verified-prof/shared';
 
 @Injectable()
@@ -20,6 +23,17 @@ export class ArchitecturalLayerService {
     if (!userId || !codeOwnership || codeOwnership.length === 0) {
       return;
     }
+
+    this.eventEmitter.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        userId,
+        JobStatus.RUNNING,
+        JobStage.ARCHITECTURE_LAYER,
+        76,
+      ),
+    );
+
     await this.prepareAndEmit(userId, codeOwnership, commitMetadata || []);
   }
 

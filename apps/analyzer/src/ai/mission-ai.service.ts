@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { OnEvent, EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '@verified-prof/prisma';
 import {
   JOB_EVENTS,
   MissionGenerationRequestedEvent,
+  JobStageProgressEvent,
+  JobStage,
+  JobStatus,
 } from '@verified-prof/shared';
 import { GeminiService } from './gemini-client.service';
 import { generateMissionSummaryPrompt } from './prompts/mission-summary.prompt';
@@ -26,13 +29,25 @@ export class MissionAiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gemini: GeminiService,
+    private readonly em: EventEmitter2,
   ) {}
 
   @OnEvent(JOB_EVENTS.MISSION_GENERATION_REQUESTED)
   async handleMissionGenerationRequested(
     event: MissionGenerationRequestedEvent,
   ) {
-    const { userProfileId, commitContexts } = event;
+    const { userProfileId, userId, commitContexts } = event;
+
+    this.em.emit(
+      JOB_EVENTS.JOB_STAGE_PROGRESS,
+      new JobStageProgressEvent(
+        userId,
+        JobStatus.RUNNING,
+        JobStage.GENERATING_MISSIONS,
+        50,
+      ),
+    );
+
     const prompt = generateMissionSummaryPrompt(commitContexts);
     try {
       const fullPrompt = `${prompt.systemPrompt}\n\n${prompt.userPrompt}`;
@@ -88,6 +103,16 @@ export class MissionAiService {
       });
 
       this.logger.log(`Persisted ${missions.length} AI-generated missions`);
+
+      this.em.emit(
+        JOB_EVENTS.JOB_STAGE_PROGRESS,
+        new JobStageProgressEvent(
+          userId,
+          JobStatus.RUNNING,
+          JobStage.GENERATING_MISSIONS,
+          54,
+        ),
+      );
     } catch (error) {
       this.logger.error('AI mission generation failed:', error);
     }
