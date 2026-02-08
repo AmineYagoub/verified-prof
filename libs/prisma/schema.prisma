@@ -22,6 +22,7 @@ model User {
   analysisTagSummaries AnalysisTagSummary[]
   userProfile          UserProfile?
   twinConversations    TwinConversation[]
+  jobTrackings         JobTracking[]
 }
 
 model Account {
@@ -169,6 +170,26 @@ enum MasteryLevel {
   EXPERT
 }
 
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum JobStage {
+  FETCHING_COMMITS
+  ANALYZING_COMMITS
+  PERSISTING_DATA
+  GENERATING_MISSIONS
+  AI_ANALYSIS
+  TECH_STACK_DNA
+  TECH_DETECTION
+  ARCHITECTURE_LAYER
+  EFFORT_DISTRIBUTION
+}
+
 model AnalysisTagSummary {
   id           String   @id @default(cuid())
   repoFullName String
@@ -193,9 +214,8 @@ model UserProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  lastAnalyzedAt   DateTime?
-  lastCommitSha    String?
-  analysisProgress Int       @default(0)
+  lastAnalyzedAt DateTime?
+  lastCommitSha  String?
 
   coreMetrics      CoreMetrics?
   techStackDNA     TechStackDNA?
@@ -209,6 +229,26 @@ model UserProfile {
   architecturalLayers  ArchitecturalLayer[]
   effortDistributions  EffortDistribution[]
   technologyStack      TechnologyStack[]
+}
+
+model JobTracking {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status         JobStatus  @default(QUEUED)
+  currentStage   JobStage?
+  progress       Int        @default(0)
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  error       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 model CoreMetrics {
