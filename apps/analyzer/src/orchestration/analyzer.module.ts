@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AnalyzerOrchestrationService } from './analyzer-orchestration.service';
+import { AnalyzerOrchestrationService } from './services/analyzer-orchestration.service';
 import { ProvidersModule } from '../providers/providers.module';
-import { AstAnalyzerService } from './ast-analyzer.service';
-import { TreeSitterService } from './tree-sitter.service';
-import { AstCodeDetectorService } from './ast-code-detector.service';
-import { AnalyzeController } from './analyze.controller';
+import { AstAnalyzerService } from './services/ast-analyzer.service';
+import { TreeSitterService } from './services/tree-sitter.service';
+import { AstCodeDetectorService } from './services/ast-code-detector.service';
 @Module({
   imports: [ProvidersModule],
   providers: [
@@ -13,7 +12,7 @@ import { AnalyzeController } from './analyze.controller';
     TreeSitterService,
     AstCodeDetectorService,
   ],
-  controllers: [AnalyzeController],
+  controllers: [],
   exports: [AstAnalyzerService, TreeSitterService, AstCodeDetectorService],
 })
 export class AnalyzerModule {}

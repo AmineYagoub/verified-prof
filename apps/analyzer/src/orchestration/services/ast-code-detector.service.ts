@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { TechCategory } from '@verified-prof/shared';
-import { DetectedTechnology } from '../tech-stack/types/tech-detection.types';
+import { DetectedTechnology } from '../../tech-stack/types/tech-detection.types';
 import { TreeSitterService } from './tree-sitter.service';
-import * as QUERIES from '../tech-stack/tech-detection.queries';
+import * as QUERIES from '../../tech-stack/tech-detection.queries';
 
 /**
  * AST-based code detector for identifying technologies from code patterns.

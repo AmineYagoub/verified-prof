@@ -1,12 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { VcsProviderFactory } from '../providers/vcs-provider.factory';
+import { VcsProviderFactory } from '../../providers/vcs-provider.factory';
 import {
+  AccountCreatedEvent,
   AnalysisTriggeredEvent,
   JOB_EVENTS,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
   MissionEvent,
   PLAN_POLICIES,
   PlanPolicy,
@@ -14,7 +13,7 @@ import {
   VcsProviderType,
 } from '@verified-prof/shared';
 import { AstAnalyzerService } from './ast-analyzer.service';
-import { PrismaService } from '@verified-prof/prisma';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
 
 @Injectable()
 export class AnalyzerOrchestrationService {
@@ -36,6 +35,13 @@ export class AnalyzerOrchestrationService {
       const provider = await this.providerFactory.createProviderForUser(
         userId,
         VcsProviderType.GITHUB,
+      );
+
+      const currentUser = await provider.getCurrentUser();
+
+      this.em.emit(
+        JOB_EVENTS.ACCOUNT_CREATED,
+        new AccountCreatedEvent(userId, currentUser.username),
       );
       const repos = await provider.getLatestCommitsContent({
         maxRepo: policy.maxRepositories,
@@ -137,12 +143,6 @@ export class AnalyzerOrchestrationService {
       this.prisma.client.architecturalLayer.deleteMany({
         where: { userProfile: { userId } },
       }),
-      this.prisma.client.cognitivePattern.deleteMany({
-        where: { userProfile: { userId } },
-      }),
-      this.prisma.client.cognitiveStyle.deleteMany({
-        where: { userProfile: { userId } },
-      }),
       this.prisma.client.coreMetrics.deleteMany({
         where: { userProfile: { userId } },
       }),
@@ -150,9 +150,6 @@ export class AnalyzerOrchestrationService {
         where: { userProfile: { userId } },
       }),
       this.prisma.client.languageExpertise.deleteMany({
-        where: { userProfile: { userId } },
-      }),
-      this.prisma.client.mentorshipActivity.deleteMany({
         where: { userProfile: { userId } },
       }),
       this.prisma.client.mission.deleteMany({

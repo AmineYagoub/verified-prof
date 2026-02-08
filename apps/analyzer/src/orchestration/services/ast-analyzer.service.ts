@@ -3,7 +3,7 @@ import { TagDetail, TagSummary } from '@verified-prof/shared';
 import crypto from 'crypto';
 import path from 'path';
 import { TreeSitterService } from './tree-sitter.service';
-import { LANGUAGES_CONFIG } from './ast-analyzer.constants';
+import { LANGUAGES_CONFIG } from '../ast-analyzer.constants';
 
 @Injectable()
 export class AstAnalyzerService {
