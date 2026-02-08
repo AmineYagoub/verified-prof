@@ -1,14 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from '@verified-prof/prisma';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
 import {
   AnalysisPersistedEvent,
   CodeOwnershipDto,
   CommitMetadataDto,
   JOB_EVENTS,
   JobStageProgressEvent,
-  JobStage,
-  JobStatus,
   MissionEvent,
   PullRequestReviewDto,
   VcsProviderType,
