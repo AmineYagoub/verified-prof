@@ -4,7 +4,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { VerifiedProfConfigModule } from '@verified-prof/config';
 import { auth } from '@verified-prof/shared';
 import { ProvidersModule } from '../providers/providers.module';
-import { HealthController } from './app.controller';
+import { AppController } from './app.controller';
 import { WebhookModule } from '../webhooks/webhook.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PersistsModule } from '../persists/persists.module';
@@ -42,7 +42,7 @@ import { ProgressModule } from '../progress/progress.module';
     LeadershipModule,
     ProgressModule,
   ],
-  controllers: [HealthController],
+  controllers: [AppController],
   providers: [],
   exports: [],
 })
