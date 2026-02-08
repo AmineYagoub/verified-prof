@@ -10,7 +10,7 @@ export class ProgressController {
   async getProgress(@Session() session: UserSession) {
     const job = await this.progressService.getJobProgress(session.user.id);
     if (!job) {
-      throw new NotFoundException('No job found for user');
+      return null;
     }
     return {
       id: job.id,
