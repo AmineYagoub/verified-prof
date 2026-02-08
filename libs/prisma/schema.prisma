@@ -7,6 +7,97 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ProviderType {
+  GITHUB
+  GITLAB
+  BITBUCKET
+}
+
+enum SyncStatus {
+  ACTIVE
+  SYNCING
+  ERROR
+  DISABLED
+  RATE_LIMITED
+}
+
+enum SeniorityRank {
+  Junior
+  Mid
+  Senior
+  Staff
+  Principal
+}
+
+enum Trend {
+  IMPROVING
+  STABLE
+  DECLINING
+}
+
+enum LearningCurveTrend {
+  Exponential
+  Steady
+  Specialist
+}
+
+enum MissionImpact {
+  Infrastructure
+  Feature
+  Refactor
+  Fix
+}
+
+enum MentorshipType {
+  GIVEN
+  RECEIVED
+}
+
+enum TechCategory {
+  DATABASE
+  ORM_ODM
+  BACKEND_FRAMEWORK
+  FRONTEND_FRAMEWORK
+  BUILD_TOOL
+  CI_CD
+  CLOUD_SERVICE
+  CONTAINER_ORCHESTRATION
+  TESTING_FRAMEWORK
+  LANGUAGE_RUNTIME
+  API_CLIENT
+  STATE_MANAGEMENT
+  AUTHENTICATION
+  MONITORING
+  MESSAGE_QUEUE
+}
+
+enum MasteryLevel {
+  MENTIONED
+  USED
+  PROFICIENT
+  EXPERT
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum JobStage {
+  FETCHING_COMMITS
+  ANALYZING_COMMITS
+  PERSISTING_DATA
+  GENERATING_MISSIONS
+  AI_ANALYSIS
+  TECH_STACK_DNA
+  TECH_DETECTION
+  ARCHITECTURE_LAYER
+  EFFORT_DISTRIBUTION
+}
+
 model User {
   id            String   @id @default(cuid())
   email         String?  @unique
@@ -99,97 +190,6 @@ model ProviderConnection {
   @@unique([userId, provider])
 }
 
-enum ProviderType {
-  GITHUB
-  GITLAB
-  BITBUCKET
-}
-
-enum SyncStatus {
-  ACTIVE
-  SYNCING
-  ERROR
-  DISABLED
-  RATE_LIMITED
-}
-
-enum SeniorityRank {
-  Junior
-  Mid
-  Senior
-  Staff
-  Principal
-}
-
-enum Trend {
-  IMPROVING
-  STABLE
-  DECLINING
-}
-
-enum LearningCurveTrend {
-  Exponential
-  Steady
-  Specialist
-}
-
-enum MissionImpact {
-  Infrastructure
-  Feature
-  Refactor
-  Fix
-}
-
-enum MentorshipType {
-  GIVEN
-  RECEIVED
-}
-
-enum TechCategory {
-  DATABASE
-  ORM_ODM
-  BACKEND_FRAMEWORK
-  FRONTEND_FRAMEWORK
-  BUILD_TOOL
-  CI_CD
-  CLOUD_SERVICE
-  CONTAINER_ORCHESTRATION
-  TESTING_FRAMEWORK
-  LANGUAGE_RUNTIME
-  API_CLIENT
-  STATE_MANAGEMENT
-  AUTHENTICATION
-  MONITORING
-  MESSAGE_QUEUE
-}
-
-enum MasteryLevel {
-  MENTIONED
-  USED
-  PROFICIENT
-  EXPERT
-}
-
-enum JobStatus {
-  QUEUED
-  RUNNING
-  COMPLETED
-  FAILED
-  CANCELLED
-}
-
-enum JobStage {
-  FETCHING_COMMITS
-  ANALYZING_COMMITS
-  PERSISTING_DATA
-  GENERATING_MISSIONS
-  AI_ANALYSIS
-  TECH_STACK_DNA
-  TECH_DETECTION
-  ARCHITECTURE_LAYER
-  EFFORT_DISTRIBUTION
-}
-
 model AnalysisTagSummary {
   id           String   @id @default(cuid())
   repoFullName String
@@ -214,18 +214,17 @@ model UserProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  slug           String?   @unique
+  bio            String?   @db.Text
   lastAnalyzedAt DateTime?
   lastCommitSha  String?
 
   coreMetrics      CoreMetrics?
   techStackDNA     TechStackDNA?
-  cognitiveStyle   CognitiveStyle?
 
   weeklyIntensities    WeeklyIntensity[]
   languageExpertises   LanguageExpertise[]
   missions             Mission[]
-  cognitivePatterns    CognitivePattern[]
-  mentorshipActivities MentorshipActivity[]
   architecturalLayers  ArchitecturalLayer[]
   effortDistributions  EffortDistribution[]
   technologyStack      TechnologyStack[]
@@ -329,49 +328,6 @@ model Mission {
 
   @@index([userProfileId, date])
   @@index([userProfileId, isHeroMission])
-}
-
-model CognitiveStyle {
-  id            String      @id @default(cuid())
-  userProfileId String      @unique
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-
-  codingPhilosophy   String @db.Text
-  strengths          String[]
-  mentalModel        String
-  abstractionLevel   Float
-  consistencyScore   Float
-  namingQuality      Float
-  documentationRatio Float
-}
-
-model CognitivePattern {
-  id            String      @id @default(cuid())
-  userProfileId String
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-
-  pattern   String
-  frequency Float
-  examples  String[]
-
-  @@unique([userProfileId, pattern])
-  @@index([userProfileId, frequency])
-}
-
-model MentorshipActivity {
-  id            String      @id @default(cuid())
-  userProfileId String
-  userProfile   UserProfile @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-
-  type         MentorshipType
-  prNumber     Int
-  repository   String
-  commentCount Int
-  depth        Float
-  date         DateTime
-
-  @@index([userProfileId, date])
-  @@index([userProfileId, type])
 }
 
 model ArchitecturalLayer {
