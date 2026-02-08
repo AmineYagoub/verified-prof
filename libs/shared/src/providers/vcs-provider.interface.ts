@@ -82,6 +82,8 @@ export interface IVcsProvider {
   ): Promise<PullRequestReview[]>;
 
   getContributors(repo: string, owner: string): Promise<{ teamSize: number }>;
+
+  getCurrentUser(): Promise<{ username: string }>;
 }
 
 /**

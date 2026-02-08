@@ -202,6 +202,11 @@ export class GitHubVcsProvider implements IVcsProvider {
     return VcsProviderType.GITHUB;
   }
 
+  async getCurrentUser(): Promise<{ username: string }> {
+    const { data } = await this.octokit.rest.users.getAuthenticated();
+    return { username: data.login };
+  }
+
   getOctokit() {
     if (!this.octokit) {
       throw new Error(
@@ -404,64 +409,74 @@ export class GitHubVcsProvider implements IVcsProvider {
   }
 
   async getCollaborationData(repo: string, owner: string) {
-    const res = await this.octokit.rest.pulls.list({
-      owner,
-      repo,
-      state: 'closed',
-      sort: 'updated',
-      direction: 'desc',
-      per_page: 100,
-    });
-    const reviews: PullRequestReview[] = [];
-    for (const pr of res.data) {
-      if (pr.merged_at) {
-        const { data: listReviews } = await this.octokit.rest.pulls.listReviews(
-          {
+    try {
+      const res = await this.octokit.rest.pulls.list({
+        owner,
+        repo,
+        per_page: 25,
+      });
+      const reviews: PullRequestReview[] = [];
+      for (const pr of res.data) {
+        if (pr.merged_at) {
+          const { data: listReviews } =
+            await this.octokit.rest.pulls.listReviews({
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+          const comments = await this.octokit.rest.pulls.listReviewComments({
             owner,
             repo,
             pull_number: pr.number,
-          },
-        );
-        const comments = await this.octokit.rest.pulls.listReviewComments({
-          owner,
-          repo,
-          pull_number: pr.number,
-        });
-        for (const review of listReviews) {
-          if (!review.submitted_at) continue;
-          const commentsForReview = comments.data.filter(
-            (c) => c.commit_id === review.commit_id,
-          );
-          const commentsCount =
-            (review.body?.trim() ? 1 : 0) + commentsForReview.length;
-          reviews.push({
-            commitSha: review.commit_id,
-            prNumber: pr.number,
-            reviewedAt: new Date(review.submitted_at),
-            commentsCount,
-            changesRequested: review.state === 'CHANGES_REQUESTED',
-            approved: review.state === 'APPROVED',
           });
+          for (const review of listReviews) {
+            if (!review.submitted_at) continue;
+            const commentsForReview = comments.data.filter(
+              (c) => c.commit_id === review.commit_id,
+            );
+            const commentsCount =
+              (review.body?.trim() ? 1 : 0) + commentsForReview.length;
+            reviews.push({
+              commitSha: review.commit_id,
+              prNumber: pr.number,
+              reviewedAt: new Date(review.submitted_at),
+              commentsCount,
+              changesRequested: review.state === 'CHANGES_REQUESTED',
+              approved: review.state === 'APPROVED',
+            });
+          }
         }
       }
+      return reviews;
+    } catch (error) {
+      this.logger.error(
+        `Error fetching collaboration data for ${owner}/${repo}: ${error.message}`,
+      );
+      return [];
     }
-    return reviews;
   }
 
   async getContributors(
     repo: string,
     owner: string,
   ): Promise<{ teamSize: number }> {
-    const contributors = await this.octokit.paginate(
-      this.octokit.rest.repos.listContributors,
-      {
-        owner,
-        repo,
-        per_page: 100,
-      },
-    );
-    return {
-      teamSize: contributors.length,
-    };
+    try {
+      const contributors = await this.octokit.paginate(
+        this.octokit.rest.repos.listContributors,
+        {
+          owner,
+          repo,
+          per_page: 25,
+        },
+      );
+      return {
+        teamSize: contributors.length,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error fetching contributors for ${owner}/${repo}: ${error.message}`,
+      );
+      return { teamSize: 0 };
+    }
   }
 }
