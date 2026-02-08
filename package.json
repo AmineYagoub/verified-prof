@@ -7,6 +7,7 @@
     "dev:zer": "nx run analyzer:serve:development",
     "dev:web": "rimraf apps/web/.next && nx run web:dev --turbopack",
     "build:web": "rimraf apps/web/.next && nx run web:build",
+    "prepare": "husky",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "db:mig": "npx wrangler d1 migrations create verified-prof",
     "db:apply": "npx wrangler d1 migrations apply verified-prof --remote",
@@ -108,6 +109,16 @@
     "ts-node": "10.9.1",
     "tslib": "^2.3.0",
     "typescript": "^5.9.3",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^6.0.1",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/github": "^12.0.5",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "semantic-release": "^25.0.3",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^9.1.7"
   }
 }

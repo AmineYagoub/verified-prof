@@ -1,0 +1,82 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "perf",
+        "refactor",
+        "docs",
+        "style",
+        "test",
+        "chore",
+        "revert",
+        "ci",
+        "build"
+      ]
+    ],
+    "type-case": [2, "always", "lower-case"],
+    "type-empty": [2, "never"],
+    "scope-empty": [0],
+    "subject-empty": [2, "never"],
+    "subject-case": [0],
+    "body-max-line-length": [2, "always", 100],
+    "footer-max-line-length": [2, "always", 100]
+  },
+  "prompt": {
+    "questions": {
+      "type": {
+        "description": "Select the type of change that you're committing",
+        "enum": [
+          {
+            "name": "feat:     A new feature",
+            "value": "feat"
+          },
+          {
+            "name": "fix:      A bug fix",
+            "value": "fix"
+          },
+          {
+            "name": "perf:     A code change that improves performance",
+            "value": "perf"
+          },
+          {
+            "name": "refactor: A code change that neither fixes a bug nor adds a feature",
+            "value": "refactor"
+          },
+          {
+            "name": "docs:     Documentation only changes",
+            "value": "docs"
+          },
+          {
+            "name": "style:    Changes that do not affect the meaning of the code",
+            "value": "style"
+          },
+          {
+            "name": "test:     Adding missing tests or correcting existing tests",
+            "value": "test"
+          },
+          {
+            "name": "chore:    Changes to the build process or auxiliary tools",
+            "value": "chore"
+          },
+          {
+            "name": "revert:   Reverts a previous commit",
+            "value": "revert"
+          },
+          {
+            "name": "ci:       Changes to CI configuration files and scripts",
+            "value": "ci"
+          },
+          {
+            "name": "build:    Changes that affect the build system or external dependencies",
+            "value": "build"
+          }
+        ]
+      }
+    }
+  }
+}
