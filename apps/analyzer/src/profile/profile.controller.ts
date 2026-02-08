@@ -36,12 +36,11 @@ export class ProfileController {
     private readonly geminiService: GeminiService,
   ) {}
 
-  @Get(':userId/core-metrics')
-  @OptionalAuth()
-  async getCoreMetrics(
-    @Param('userId') userId: string,
-  ): Promise<CoreMetricsApiResponse> {
-    return this.profileService.getCoreMetrics(userId);
+  @Get('me')
+  async getMyProfile(
+    @Session() session: UserSession,
+  ): Promise<UserProfileResponse | null> {
+    return await this.aggregatorService.getMyProfile(session.user.id);
   }
 
   @Get(':slug')
@@ -50,6 +49,14 @@ export class ProfileController {
     @Param('slug') slug: string,
   ): Promise<UserProfileResponse> {
     return await this.aggregatorService.getFullProfile(slug);
+  }
+
+  @Get(':userId/core-metrics')
+  @OptionalAuth()
+  async getCoreMetrics(
+    @Param('userId') userId: string,
+  ): Promise<CoreMetricsApiResponse> {
+    return this.profileService.getCoreMetrics(userId);
   }
 
   @Get(':slug/twin-token')

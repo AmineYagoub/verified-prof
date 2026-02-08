@@ -12,9 +12,27 @@ import {
 
 @Injectable()
 export class ProfileAggregatorService {
-  private readonly logger = new Logger(ProfileAggregatorService.name);
-
   constructor(private readonly prisma: PrismaService) {}
+
+  async getMyProfile(userId: string): Promise<UserProfileResponse | null> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      include: {
+        userProfile: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found.`);
+    }
+    if (!user.userProfile?.slug) {
+      return null;
+    }
+    return await this.getFullProfile(user.userProfile.slug);
+  }
 
   async getFullProfile(slug: string): Promise<UserProfileResponse> {
     const userProfile = await this.prisma.client.userProfile.findUnique({
