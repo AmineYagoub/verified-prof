@@ -5,4 +5,5 @@ export { TechStackService } from './tech-stack.service';
 export { MissionsService } from './missions.service';
 export { WorkerService } from './worker.service';
 export { LeadershipService, leadershipService } from './leadership.service';
+export { ProgressService } from './progress.service';
 export type { WorkerHealthResponse } from './worker.service';

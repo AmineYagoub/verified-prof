@@ -5,8 +5,8 @@ import {
 import { api } from './api';
 
 export class ProfileService {
-  static async getCurrentProfile(): Promise<UserProfileResponse> {
-    const response = await api.get<UserProfileResponse>('/profile/me');
+  static async getCurrentProfile(slug: string): Promise<UserProfileResponse> {
+    const response = await api.get<UserProfileResponse>(`/profile/${slug}`);
     return response.data;
   }
 
