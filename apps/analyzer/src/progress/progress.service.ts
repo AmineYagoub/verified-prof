@@ -1,12 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from '@verified-prof/prisma';
-import {
-  JOB_EVENTS,
-  JobStageProgressEvent,
-  JobStage,
-  JobStatus,
-} from '@verified-prof/shared';
+import { JobStage, JobStatus, PrismaService } from '@verified-prof/prisma';
+import { JOB_EVENTS, JobStageProgressEvent } from '@verified-prof/shared';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -82,7 +77,6 @@ export class ProgressService {
         createdAt: 'desc',
       },
     });
-
     if (!job) {
       const recentJob = await this.prisma.client.jobTracking.findFirst({
         where: { userId },
@@ -90,10 +84,8 @@ export class ProgressService {
           createdAt: 'desc',
         },
       });
-
       return recentJob || null;
     }
-
     return job;
   }
 
