@@ -4,6 +4,8 @@ import { dehydrate } from '@tanstack/react-query';
 import getQueryClient from '@verified-prof/web/lib/react-query/query-client.server';
 import { ProfileService } from '@verified-prof/web/services/profile.service';
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import axios from 'axios';
 
 export async function generateMetadata({
   params,
@@ -24,10 +26,19 @@ export default async function Profile({
 }) {
   const { slug } = await params;
   const queryClient = getQueryClient();
-  await queryClient.fetchQuery({
-    queryKey: ['userProfile', slug],
-    queryFn: () => ProfileService.getCurrentProfile(slug),
-  });
+
+  try {
+    await queryClient.fetchQuery({
+      queryKey: ['userProfile', slug],
+      queryFn: () => ProfileService.getCurrentProfile(slug, false),
+    });
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      notFound();
+    }
+    throw error;
+  }
+
   const dehydratedState = dehydrate(queryClient);
   return (
     <ReactQueryClientProvider dehydratedState={dehydratedState}>
