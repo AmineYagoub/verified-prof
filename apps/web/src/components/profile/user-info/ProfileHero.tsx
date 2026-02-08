@@ -185,7 +185,7 @@ export const ProfileHero = ({
             Let vTwin explain the engineer behind the code
           </h2>
           <button
-            className="btn btn-lg rounded-full hover:scale-110 transition-transform hover:bg-green-600 text-white border-green-500 pl-1 h-13 self-center border-2"
+            className="btn btn-lg rounded-full hover:scale-101 transition-transform hover:bg-green-600 text-white border-green-500 pl-1 h-13 self-center border-2"
             aria-label="Talk to VoiceTwin AI"
           >
             <div className="relative flex items-center justify-center w-10 h-10">

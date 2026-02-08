@@ -5,8 +5,20 @@ import {
 import { api } from './api';
 
 export class ProfileService {
-  static async getCurrentProfile(slug: string): Promise<UserProfileResponse> {
-    const response = await api.get<UserProfileResponse>(`/profile/${slug}`);
+  static async triggerAnalysis() {
+    const response = await api.post(`/trigger`, {
+      plan: 'FREE',
+    });
+    return response.data;
+  }
+
+  static async getCurrentProfile(
+    slug: string,
+    isDashboard: boolean,
+  ): Promise<UserProfileResponse> {
+    const response = await api.get<UserProfileResponse>(
+      `/profile/${isDashboard ? 'me' : slug}`,
+    );
     return response.data;
   }
 

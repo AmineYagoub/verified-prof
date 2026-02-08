@@ -5,9 +5,11 @@ import { ProfileHero } from './user-info/ProfileHero';
 import { CoreMetricsDashboard } from './core-metrics/CoreMetricsDashboard';
 import { MissionLine } from './missions/MissionLine';
 import { EngineeringLeadership } from './leadership/EngineeringLeadership';
+import { FooterCTA } from '../home/FooterCTA';
+import { format } from 'date-fns';
 
 const ProfilePage = ({ slug }: { slug: string }) => {
-  const { data, isLoading, error } = useProfile(slug);
+  const { data, isLoading, error } = useProfile(slug, false);
 
   if (isLoading) {
     return (
@@ -73,15 +75,43 @@ const ProfilePage = ({ slug }: { slug: string }) => {
   }
 
   return (
-    <main className="drawer-content flex flex-col gap-2 overflow-auto max-w-5xl mx-auto w-full py-8 min-h-screen">
-      <ProfileHero userName={data.name} userImage={data.image} bio={data.bio} />
-      <CoreMetricsDashboard
-        coreMetrics={data.coreMetrics}
-        dominantLanguages={data.techStackDNA.dominantLanguages}
-      />
-      <MissionLine missionTimeline={data.missionTimeline} />
-      <EngineeringLeadership userId={data.userId} />
-    </main>
+    <div>
+      <main className="drawer-content flex flex-col gap-2 overflow-auto max-w-5xl mx-auto w-full py-8 min-h-screen">
+        <ProfileHero
+          userName={data.name}
+          userImage={data.image}
+          bio={data.bio}
+        />
+        <CoreMetricsDashboard
+          coreMetrics={data.coreMetrics}
+          dominantLanguages={data.techStackDNA.dominantLanguages}
+        />
+        <MissionLine missionTimeline={data.missionTimeline} />
+        <EngineeringLeadership userId={data.userId} />
+      </main>
+
+      <div className="flex items-center justify-center gap-2 bg-success/10 border border-success/30 rounded-full p-2 backdrop-blur-sm shadow-lg shadow-success/20 max-w-sm mx-auto my-8">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5 text-success"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+        <span className="text-sm font-medium text-success">
+          Last Verification:{' '}
+          {format(new Date(data.lastAnalyzedAt), 'MMM dd, yyyy')}
+        </span>
+      </div>
+
+      <FooterCTA />
+    </div>
   );
 };
 
