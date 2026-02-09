@@ -1,10 +1,10 @@
-# verified.prof
+# Verified.prof
 
 **Structural verification for technical hiring. No hallucinations, no résumé inflation—just AST-grounded developer profiles with a voice-enabled AI twin for recruiter interviews.**
 
 ---
 
-## Hackathon Summary
+## Summary
 
 Technical hiring has a trust problem. Developers claim expertise in frameworks they barely touched. Résumés list technologies used once in a tutorial. Recruiters spend hours verifying claims through behavioral interviews that rely on memory and self-reporting.
 
@@ -219,13 +219,25 @@ npm run dev:web
 # Runs on http://localhost:3000
 ```
 
-### Hot Reload
-
-Both services support hot reload. Changes to shared libraries (`@verified-prof/shared`) automatically rebuild and reload.
-
 ---
 
-## Demo Instructions for Judges
+## Demo Instructions
+
+**Quick Start**: You don't need to connect your own GitHub account. We've prepared a live demo profile at **[https://verified.prof/AmineYagoub](https://verified.prof/AmineYagoub)** where you can immediately view the verified profile and interview the Voice Twin.
+
+### Option A: Use Demo Profile (Recommended)
+
+1. **Visit the live demo**: [https://verified.prof/AmineYagoub](https://verified.prof/AmineYagoub)
+2. **Explore the verified profile**:
+   - Core Metrics dashboard with real AST-derived scores
+   - Tech Stack DNA with mastery levels
+   - Mission Timeline with auto-generated project summaries
+3. **Interview the Voice Twin**: Click **"Live Interview"** button
+   - Grant microphone permissions when prompted
+   - Ask technical questions about the developer's experience
+   - Listen for grounded, commit-backed responses
+
+### Option B: Test with Your Own GitHub (Optional)
 
 ### 1. Connect GitHub
 
@@ -254,7 +266,7 @@ Both services support hot reload. Changes to shared libraries (`@verified-prof/s
 
 ### 4. Interview the Voice Twin
 
-- Click **"Live Interview"** button (or visit `/:slug?live=true`)
+- Click **"Live Interview"** button (or visit `https://verified.prof/AmineYagoub?live=true` for demo)
 - Grant microphone permissions when prompted
 - **Try these questions:**
   - "What's your experience with [technology from profile]?"
