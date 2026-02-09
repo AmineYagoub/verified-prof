@@ -1,12 +1,22 @@
 # Verified.prof
 
-**Structural verification for technical hiring. No hallucinations, no résumé inflation—just AST-grounded developer profiles with a voice-enabled AI twin for recruiter interviews.**
+<p align="center">
+  <a href="https://youtu.be/3ritkx6KU_M">
+    <img src="https://img.youtube.com/vi/3ritkx6KU_M/0.jpg" alt="Verified.prof Demo Video" width="600">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/3ritkx6KU_M">Watch the Demo</a>
+</p>
 
 Beyond the static CV: A living, verifiable profile that evolves with every commit. Let your Digital Twin advocate for your mastery.
 
+**Structural verification for technical hiring. No hallucinations, no résumé inflation—just AST-grounded developer profiles with a voice-enabled AI twin for recruiter interviews.**
+
 ---
 
-## Summary
+## Hackathon Summary (The Action Era)
 
 Technical hiring has a trust problem. Developers claim expertise in frameworks they barely touched. Résumés list technologies used once in a tutorial. Recruiters spend hours verifying claims through behavioral interviews that rely on memory and self-reporting.
 
