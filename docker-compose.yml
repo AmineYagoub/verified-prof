@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: verified-prof-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: verified_prof
+      POSTGRES_PASSWORD: verified_prof_password
+      POSTGRES_DB: verified_prof
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
