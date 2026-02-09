@@ -1,7 +1,7 @@
 'use client';
 
 import { useVoiceTwin } from '@verified-prof/web/hooks/use-voice-twin';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import LoadingCanvas from '@verified-prof/web/components/twin/LoadingCanvas';
 import ThreeScene from '@verified-prof/web/components/twin/ThreeScene';
@@ -12,14 +12,18 @@ const VoiceTwinPage = ({ slug }: { slug: string }) => {
   const { isPreparing, audioAnalyser, startSession, endSession } =
     useVoiceTwin(slug);
   const router = useRouter();
+  const sessionStartedRef = useRef(false);
 
   useEffect(() => {
-    startSession();
+    if (!sessionStartedRef.current) {
+      sessionStartedRef.current = true;
+      startSession();
+    }
   }, [startSession]);
 
   const handleEndSession = async () => {
     await endSession();
-    router.push(`/profile/${slug}`);
+    router.push(`/${slug}`);
   };
 
   return (
@@ -33,7 +37,7 @@ const VoiceTwinPage = ({ slug }: { slug: string }) => {
           <SpectrumAnalyzer audioAnalyser={audioAnalyser} />
           <button
             onClick={handleEndSession}
-            className="fixed top-5 left-1/2 -translate-x-1/2 z-30 px-6 py-3 bg-[rgba(59,130,246,0.2)] hover:bg-[rgba(59,130,246,0.4)] border border-[#3b82f6] text-[#3b82f6] rounded-md backdrop-blur-md transition-colors uppercase tracking-wide text-sm font-semibold"
+            className="fixed top-5 left-1/2 -translate-x-1/2 z-30 px-6 py-3 bg-[rgba(59,130,246,0.2)] hover:bg-[rgba(59,130,246,0.4)] border border-[#3b82f6] text-[#3b82f6] rounded-md backdrop-blur-md transition-colors uppercase tracking-wide text-sm font-semibold cursor-pointer"
           >
             End Interview
           </button>

@@ -7,9 +7,17 @@ import { MissionLine } from './missions/MissionLine';
 import { EngineeringLeadership } from './leadership/EngineeringLeadership';
 import { FooterCTA } from '../home/FooterCTA';
 import { format } from 'date-fns';
+import VoiceTwinPage from '../twin/TwinPage';
+import { useSearchParams } from 'next/navigation';
 
 const ProfilePage = ({ slug }: { slug: string }) => {
   const { data, isLoading, error } = useProfile(slug, false);
+  const searchParams = useSearchParams();
+  const search = searchParams.get('live');
+
+  if (search === 'true') {
+    return <VoiceTwinPage slug={slug} />;
+  }
 
   if (isLoading) {
     return (

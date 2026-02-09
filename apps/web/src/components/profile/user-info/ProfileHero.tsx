@@ -7,6 +7,7 @@ import {
 } from '@verified-prof/shared/client';
 import { ProfileService } from '@verified-prof/web/services/profile.service';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -27,6 +28,7 @@ export const ProfileHero = ({
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [currentAvatar, setCurrentAvatar] = useState(userImage);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -187,6 +189,7 @@ export const ProfileHero = ({
           <button
             className="btn btn-lg rounded-full hover:scale-101 transition-transform hover:bg-green-600 text-white border-green-500 pl-1 h-13 self-center border-2"
             aria-label="Talk to VoiceTwin AI"
+            onClick={() => router.push('?live=true')}
           >
             <div className="relative flex items-center justify-center w-10 h-10">
               <div className="absolute inset-0 rounded-full bg-green-400 animate-ping [animation-duration:1s]"></div>

@@ -26,7 +26,6 @@ export default async function Profile({
 }) {
   const { slug } = await params;
   const queryClient = getQueryClient();
-
   try {
     await queryClient.fetchQuery({
       queryKey: ['userProfile', slug],
