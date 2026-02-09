@@ -15,6 +15,7 @@ interface ProfileHeroProps {
   userName: string;
   userImage?: string;
   bio: string;
+  slug: string;
   isDashboard?: boolean;
 }
 
@@ -22,6 +23,7 @@ export const ProfileHero = ({
   userName,
   userImage,
   bio,
+  slug,
   isDashboard,
 }: ProfileHeroProps) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -189,7 +191,7 @@ export const ProfileHero = ({
           <button
             className="btn btn-lg rounded-full hover:scale-101 transition-transform hover:bg-green-600 text-white border-green-500 pl-1 h-13 self-center border-2"
             aria-label="Talk to VoiceTwin AI"
-            onClick={() => router.push('?live=true')}
+            onClick={() => router.push(`/${slug}?live=true`)}
           >
             <div className="relative flex items-center justify-center w-10 h-10">
               <div className="absolute inset-0 rounded-full bg-green-400 animate-ping [animation-duration:1s]"></div>

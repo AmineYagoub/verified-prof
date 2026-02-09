@@ -89,6 +89,7 @@ const ProfilePage = ({ slug }: { slug: string }) => {
           userName={data.name}
           userImage={data.image}
           bio={data.bio}
+          slug={data.slug}
         />
         <CoreMetricsDashboard
           coreMetrics={data.coreMetrics}

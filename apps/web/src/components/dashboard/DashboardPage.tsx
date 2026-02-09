@@ -168,6 +168,7 @@ const DashboardPage = ({ userId }: { userId: string }) => {
         userName={data.name}
         userImage={data.image}
         bio={data.bio}
+        slug={data.slug}
         isDashboard
       />
       <CoreMetricsDashboard
