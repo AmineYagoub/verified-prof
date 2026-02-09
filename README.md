@@ -2,6 +2,8 @@
 
 **Structural verification for technical hiring. No hallucinations, no résumé inflation—just AST-grounded developer profiles with a voice-enabled AI twin for recruiter interviews.**
 
+Beyond the static CV: A living, verifiable profile that evolves with every commit. Let your Digital Twin advocate for your mastery.
+
 ---
 
 ## Summary
@@ -32,6 +34,8 @@ This creates a **Structural Grounding** layer between raw code and AI inference.
 
 ## 🧠 How We Used Gemini 3
 
+We integrated Gemini 3 not as a chatbot, but as a Multimodal Reasoning Engine central to our orchestration.
+
 ### Gemini 3 (Analysis Pipeline)
 
 - **Core Metrics Calculation**: Receives AST summaries (complexity scores, file counts, import patterns) and generates Code Impact, Logic Density, System Complexity scores
@@ -43,7 +47,7 @@ This creates a **Structural Grounding** layer between raw code and AI inference.
 
 ### Gemini Flash Live API (Voice Twin)
 
-- **Real-Time Voice Interviews**: Recruiter speaks questions, Twin responds verbally using Gemini Live's native audio streaming
+- **Multimodal Live API Interviews**: Recruiter speaks questions, Twin responds verbally using Gemini Live's native audio streaming
 - **Bi-Directional Audio**: 16kHz input from recruiter microphone, 24kHz output for natural voice responses
 - **Structured Context**: Twin system prompt includes Core Metrics, Tech Stack, Mission Timeline—all AST-derived
 - **Grounded Responses**: Gemini's reasoning constrained to provided context, preventing hallucinations about technologies not in commit history
@@ -387,4 +391,8 @@ npm run dev:web  # Frontend
 
 ---
 
-**Built with Gemini 3 for Google AI Hackathon 2026**
+📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+Built with 💜 for the Gemini 3 Hackathon 2026.
