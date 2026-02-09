@@ -46,14 +46,21 @@ const SpectrumAnalyzer = ({ audioAnalyser }: SpectrumAnalyzerProps) => {
         let x = 0;
 
         for (let i = 0; i < 256; i++) {
-          const barHeight = (frequencyData[i] / 255) * height * 0.1;
-          const hue = 140 + (i / 256) * 30;
-          ctx.fillStyle = `hsla(${hue}, 70%, 45%, 0.3)`;
+          const barHeight = (frequencyData[i] / 255) * height * 0.15;
+          const intensity = frequencyData[i] / 255;
+          const blue = Math.floor(180 + intensity * 75);
+          const alpha = 0.3 + intensity * 0.5;
+
+          ctx.shadowBlur = 15 + intensity * 10;
+          ctx.shadowColor = `rgba(59, 130, 246, ${0.5 + intensity * 0.3})`;
+          ctx.fillStyle = `rgba(30, 64, ${blue}, ${alpha})`;
           ctx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
+          ctx.shadowBlur = 0;
+
           x += barWidth;
         }
 
-        ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.15)';
         ctx.lineWidth = 1;
         for (let i = 0; i < 5; i++) {
           const y = height * (i / 4);
