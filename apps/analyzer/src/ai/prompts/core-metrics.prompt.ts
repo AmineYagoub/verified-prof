@@ -115,7 +115,7 @@ Analyze the tree-sitter AST results and collaboration data above to return JSON 
 2. **cycleTime**: Calculate hours between earliest and latest commit author date
 3. **logicDensity**: Average complexity / functions.length (0-1 scale)
 4. **systemComplexityScore**: (totalComplexity / totalFiles) * 10, max 100
-5. **velocityPercentile**: Rank based on files modified, complexity, and team size context (0-100)
+5. **velocityPercentile**: Rank based on files modified, complexity, and team size context (0-95, never exceed 95)
 6. **seniorityRank**: 
    - Junior: avgComplexity < 5, < 10 functions total
    - Mid: avgComplexity 5-10, 10-30 functions, minimal PR reviews
