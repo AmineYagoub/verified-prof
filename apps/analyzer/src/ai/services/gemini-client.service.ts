@@ -26,7 +26,7 @@ export interface EphemeralTokenConfig {
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private ai: GoogleGenAI;
-  private readonly defaultModel = 'gemini-2.5-flash';
+  private readonly defaultModel = 'gemini-3-flash-preview';
 
   constructor(
     @InjectAppConfig() private readonly config: AppConfigType,
