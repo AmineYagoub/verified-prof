@@ -35,6 +35,10 @@ export const auth = betterAuth({
   advanced: {
     cookiePrefix: 'verified-prof',
     generateId: () => crypto.randomUUID(),
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: process.env['NEXT_PUBLIC_WORKER_SERVICE_URL'],
+    },
   },
   socialProviders: {
     github: {
