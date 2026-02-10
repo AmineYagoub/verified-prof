@@ -45,15 +45,26 @@ jobs:
 
       - name: Prepare web standalone for deployment
         run: |
-          # Create directories first
-          mkdir -p apps/web/.next/standalone/.next/static
+          # 1. Create the expected directory structure for standalone
+          mkdir -p apps/web/.next/standalone/apps/web/.next/static
           mkdir -p apps/web/.next/standalone/public
-          # Copy static files into standalone .next folder
-          cp -r apps/web/.next/static/* apps/web/.next/standalone/.next/static/
-          # Copy public folder into standalone
-          cp -r apps/web/public/* apps/web/.next/standalone/public/
-          # Copy .npmrc for Cloud Run
-          cp apps/web/.npmrc apps/web/.next/standalone/
+
+          # 2. Copy assets into the standalone folder
+          if [ -d "apps/web/public" ]; then cp -r apps/web/public/. apps/web/.next/standalone/public/; fi
+          if [ -d "apps/web/.next/static" ]; then cp -r apps/web/.next/static/. apps/web/.next/standalone/.next/static/; fi
+
+          # 3. CRITICAL: Create a Dockerfile inside the standalone artifact
+          # Cloud Run 'source' deployment needs this to know how to run your app
+          cat <<EOF > apps/web/.next/standalone/Dockerfile
+          FROM node:22-slim
+          WORKDIR /app
+          COPY . .
+          ENV PORT=8080
+          ENV HOSTNAME="0.0.0.0"
+          ENV NODE_ENV=production
+          EXPOSE 8080
+          CMD ["node", "server.js"]
+          EOF
 
       - name: Upload web standalone artifacts
         uses: actions/upload-artifact@v4
@@ -92,18 +103,16 @@ jobs:
 
       - name: Deploy to Cloud Run
         id: deploy-web
-        uses: google-github-actions/deploy-cloudrun@v3
+        uses: google-github-actions/deploy-cloudrun@v2 # Updated to v2 stable
         with:
           source: ./standalone
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: verified-prof-web
           flags: --allow-unauthenticated
-
-      - name: Deploy web outputs
-        run: |
-          echo "Web service URL: ${{ steps.deploy-web.outputs.url }}"
-          echo "Web revision: ${{ steps.deploy-web.outputs.revision }}"
+          env_vars: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
 
   deploy-api:
     runs-on: ubuntu-latest
