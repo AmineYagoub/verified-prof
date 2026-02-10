@@ -45,27 +45,35 @@ jobs:
 
       - name: Prepare web standalone for deployment
         run: |
+          # 1. Define paths
           STANDALONE_PATH="apps/web/.next/standalone"
 
-          # 1. Copy static/public assets to the correct relative paths
-          mkdir -p $STANDALONE_PATH/apps/web/.next/static
-          mkdir -p $STANDALONE_PATH/public
-          [ -d "apps/web/.next/static" ] && cp -r apps/web/.next/static/. $STANDALONE_PATH/apps/web/.next/static/
-          [ -d "apps/web/public" ] && cp -r apps/web/public/. $STANDALONE_PATH/public/
+          # 2. Flatten the structure: Move everything inside standalone to a temp folder, 
+          # then move the nested app contents to the standalone root.
+          # This fixes the 'module not found' by ensuring node_modules is where server.js expects.
+          cp -r $STANDALONE_PATH/apps/web/. $STANDALONE_PATH/
 
-          # 2. Inject Dockerfile
-          # Note: We run from the root of standalone so paths match monorepo structure
+          # 3. Create the standard asset folders Next.js needs
+          mkdir -p $STANDALONE_PATH/.next/static
+          mkdir -p $STANDALONE_PATH/public
+
+          # 4. Copy static assets to the new flattened root
+          if [ -d "apps/web/.next/static" ]; then cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/; fi
+          if [ -d "apps/web/public" ]; then cp -r apps/web/public/. $STANDALONE_PATH/public/; fi
+
+          # 5. Create the Dockerfile at the NEW root
           cat <<EOF > $STANDALONE_PATH/Dockerfile
           FROM node:22-slim
           WORKDIR /app
           COPY . .
-          RUN npm install sharp
+          # In standalone mode, 'next' is inside the bundled node_modules
+          ENV NODE_PATH=.
           ENV PORT=8080
           ENV HOSTNAME="0.0.0.0"
           ENV NODE_ENV=production
           EXPOSE 8080
-          # Next.js standalone entry point in monorepos is often here:
-          CMD ["node", "apps/web/server.js"]
+          # Since we flattened the folder, server.js is now at the root
+          CMD ["node", "server.js"]
           EOF
 
       - name: Upload web standalone artifacts
@@ -178,11 +186,13 @@ jobs:
             BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest
             DATABASE_URL=DATABASE_URL:latest
             GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest
+            GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest
           # Pull from GitHub Secrets (Non-sensitive or Build-time values)
           env_vars: |
             ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
             GOOGLE_BUCKET_NAME=${{ secrets.GCP_BUCKET_NAME }}
             BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+            GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
             ANALYZER_PORT=8080
 
   release:
