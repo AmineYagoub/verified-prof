@@ -118,7 +118,7 @@ jobs:
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: verified-prof-web
-          flags: --allow-unauthenticated
+          flags: --allow-unauthenticated --clear-base-image
           env_vars: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
             BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
