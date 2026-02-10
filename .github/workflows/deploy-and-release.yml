@@ -46,9 +46,9 @@ jobs:
       - name: Prepare web standalone for deployment
         run: |
           # Copy static files into standalone .next folder
-          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/
+          cp -r apps/web/.next/static apps/web/.next/standalone/.next/static
           # Copy public folder into standalone
-          cp -r apps/web/public apps/web/.next/standalone/apps/web/
+          cp -r apps/web/public apps/web/.next/standalone/public
           # Copy .npmrc for Cloud Run
           cp apps/web/.npmrc apps/web/.next/standalone/
 
