@@ -22,11 +22,6 @@ export const appConfig = registerAs(APP_CONFIG_REGISTER_KEY, () => ({
     origin: getEnvSafely('ALLOWED_ORIGINS')?.split(','),
     vcsProvider: process.env['DEFAULT_VCS_PROVIDER'],
   },
-  github: {
-    clientId: getEnvSafely('GITHUB_CLIENT_ID'),
-    clientSecret: getEnvSafely('GITHUB_CLIENT_SECRET'),
-    redirectUrl: getEnvSafely('GITHUB_REDIRECT_URL'),
-  },
   analyzer: {
     protocol: process.env['ANALYZER_PROTOCOL'] || 'http',
     host: process.env['ANALYZER_HOST'] || '127.0.0.1',
