@@ -95,7 +95,7 @@ jobs:
           source: ./standalone
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_name: verified-prof-web
+          service: verified-prof-web
 
       - name: Deploy web outputs
         run: |
@@ -125,8 +125,7 @@ jobs:
           source: ./api
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_name: verified-prof-api
-          cloud_run_options: '--allow-unauthenticated'
+          service: verified-prof-api
 
       - name: Deploy API outputs
         run: |
