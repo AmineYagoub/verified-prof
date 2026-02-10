@@ -50,17 +50,17 @@ jobs:
           # Copy public folder into standalone
           cp -r apps/web/public apps/web/.next/standalone/apps/web/
 
-      - name: Install API production dependencies
-        run: |
-          cd dist/apps/analyzer
-          npm ci --production --no-fund --force
-
       - name: Upload web standalone artifacts
         uses: actions/upload-artifact@v4
         with:
           name: web-standalone
           path: apps/web/.next/standalone
           retention-days: 1
+
+      - name: Install API production dependencies
+        run: |
+          cd dist/apps/analyzer
+          npm install --omit=dev
 
       - name: Upload API artifacts
         uses: actions/upload-artifact@v4
