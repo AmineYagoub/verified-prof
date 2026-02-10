@@ -99,6 +99,7 @@ jobs:
           COPY libs/ ./libs/
 
           # Disable Husky but allow other scripts (like tree-sitter compilation)
+          RUN npm pkg delete scripts.prepare
           ENV HUSKY=0
           RUN npm install --omit=dev --force 
 
