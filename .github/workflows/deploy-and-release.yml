@@ -45,34 +45,27 @@ jobs:
 
       - name: Prepare web standalone for deployment
         run: |
-          # 1. Define the standalone root for clarity
           STANDALONE_PATH="apps/web/.next/standalone"
 
-          # 2. Create directories for static assets 
-          # Next.js standalone in monorepos looks for assets in: 
-          # [standalone-root]/apps/web/.next/static
+          # 1. Copy static/public assets to the correct relative paths
           mkdir -p $STANDALONE_PATH/apps/web/.next/static
           mkdir -p $STANDALONE_PATH/public
+          [ -d "apps/web/.next/static" ] && cp -r apps/web/.next/static/. $STANDALONE_PATH/apps/web/.next/static/
+          [ -d "apps/web/public" ] && cp -r apps/web/public/. $STANDALONE_PATH/public/
 
-          # 3. Copy static files (use -r to ensure recursive copy)
-          if [ -d "apps/web/.next/static" ]; then 
-            cp -r apps/web/.next/static/. $STANDALONE_PATH/apps/web/.next/static/
-          fi
-
-          if [ -d "apps/web/public" ]; then 
-            cp -r apps/web/public/. $STANDALONE_PATH/public/
-          fi
-
-          # 4. Create the Dockerfile
+          # 2. Inject Dockerfile
+          # Note: We run from the root of standalone so paths match monorepo structure
           cat <<EOF > $STANDALONE_PATH/Dockerfile
           FROM node:22-slim
           WORKDIR /app
           COPY . .
+          RUN npm install sharp
           ENV PORT=8080
           ENV HOSTNAME="0.0.0.0"
           ENV NODE_ENV=production
           EXPOSE 8080
-          CMD ["node", "server.js"]
+          # Next.js standalone entry point in monorepos is often here:
+          CMD ["node", "apps/web/server.js"]
           EOF
 
       - name: Upload web standalone artifacts
@@ -84,8 +77,34 @@ jobs:
 
       - name: Prepare API for deployment
         run: |
-          # Copy .npmrc for Cloud Run
-          cp apps/analyzer/.npmrc dist/apps/analyzer/
+          API_PATH="dist/apps/analyzer"
+
+          # 1. Recreate the custom Prisma client path so 'npm install' can link it
+          mkdir -p $API_PATH/libs/prisma/src
+          cp -r libs/prisma/src/generated $API_PATH/libs/prisma/src/
+
+          # 2. Create a Dockerfile that installs dependencies inside the container
+          cat <<EOF > $API_PATH/Dockerfile
+          FROM node:22-slim
+          # Install OpenSSL for Prisma and build tools for npm install
+          RUN apt-get update -y && apt-get install -y openssl python3 make g++
+
+          WORKDIR /app
+
+          # Copy the generated package.json and the Prisma client
+          COPY package.json ./
+          COPY libs/ ./libs/
+          COPY . .
+
+          # Install production dependencies only
+          RUN npm install --omit=dev --force --ignore-scripts
+
+          ENV PORT=8080
+          ENV NODE_ENV=production
+          EXPOSE 8080
+
+          CMD ["node", "main.js"]
+          EOF
 
       - name: Upload API artifacts
         uses: actions/upload-artifact@v4
