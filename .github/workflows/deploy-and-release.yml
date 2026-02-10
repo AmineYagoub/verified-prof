@@ -96,6 +96,7 @@ jobs:
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: verified-prof-web
+          flags: --allow-unauthenticated
 
       - name: Deploy web outputs
         run: |
