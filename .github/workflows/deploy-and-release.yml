@@ -43,14 +43,23 @@ jobs:
       - name: Build NestJS API
         run: npm run build:zer
 
+      - name: Prepare web standalone for deployment
+        run: |
+          # Copy static files into standalone .next folder
+          cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/
+          # Copy public folder into standalone
+          cp -r apps/web/public apps/web/.next/standalone/apps/web/
+
+      - name: Install API production dependencies
+        run: |
+          cd dist/apps/analyzer
+          npm ci --production --no-fund --force
+
       - name: Upload web standalone artifacts
         uses: actions/upload-artifact@v4
         with:
           name: web-standalone
-          path: |
-            apps/web/.next/standalone
-            apps/web/.next/static
-            apps/web/public
+          path: apps/web/.next/standalone
           retention-days: 1
 
       - name: Upload API artifacts
@@ -69,18 +78,6 @@ jobs:
         with:
           name: web-standalone
           path: ./standalone
-
-      - name: Create package.json for standalone
-        run: |
-          cat > standalone/package.json << 'EOF'
-          {
-            "name": "verified-prof-web",
-            "version": "1.0.0",
-            "scripts": {
-              "start": "node apps/web/server.js"
-            }
-          }
-          EOF
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
