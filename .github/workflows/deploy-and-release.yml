@@ -87,25 +87,36 @@ jobs:
         run: |
           API_PATH="dist/apps/analyzer"
 
-          # 1. Recreate the custom Prisma client path so 'npm install' can link it
+          # 1. Copy the nested Prisma library so the container build can see it
           mkdir -p $API_PATH/libs/prisma/src
           cp -r libs/prisma/src/generated $API_PATH/libs/prisma/src/
 
-          # 2. Create a Dockerfile that installs dependencies inside the container
+          # 2. Inject a Dockerfile that handles native C++ builds
           cat <<EOF > $API_PATH/Dockerfile
-          FROM node:22-slim
-          # Install OpenSSL for Prisma and build tools for npm install
-          RUN apt-get update -y && apt-get install -y openssl python3 make g++
+          FROM node:22-bookworm-slim
+
+          # Install build essentials required for tree-sitter (native modules)
+          RUN apt-get update -y && apt-get install -y \\
+              openssl \\
+              python3 \\
+              make \\
+              g++ \\
+              gcc \\
+              libc6-dev
 
           WORKDIR /app
 
-          # Copy the generated package.json and the Prisma client
-          COPY package.json ./
-          COPY libs/ ./libs/
-          COPY . .
+          # Copy only the package files first to leverage cache
+          COPY package*.json ./
 
-          # Install production dependencies only
+          # Copy the local Prisma lib so npm install can link if needed
+          COPY libs/ ./libs/
+
+          # Force a clean install to compile native tree-sitter bindings for the container
           RUN npm install --omit=dev --force --ignore-scripts
+
+          # Now copy the rest of the built code (main.js, etc)
+          COPY . .
 
           ENV PORT=8080
           ENV NODE_ENV=production
@@ -197,11 +208,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    needs: [build]
-    env:
-      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-    if: needs.build.result == 'success'
+    needs: [build, deploy-web, deploy-api]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
