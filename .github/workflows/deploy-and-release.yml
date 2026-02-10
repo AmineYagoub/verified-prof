@@ -126,6 +126,7 @@ jobs:
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: verified-prof-api
+          flags: --allow-unauthenticated
 
       - name: Deploy API outputs
         run: |
@@ -138,7 +139,7 @@ jobs:
     env:
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-    # if: always() && needs.build.result == 'success'
+    if: needs.build.result == 'success'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
