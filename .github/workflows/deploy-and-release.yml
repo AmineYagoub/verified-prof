@@ -138,9 +138,16 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: verified-prof-web
           flags: --allow-unauthenticated --clear-base-image
+          secrets: |
+            BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest
+            DATABASE_URL=DATABASE_URL:latest
+            GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest
+          # Pull from GitHub Secrets (Non-sensitive or Build-time values)
           env_vars: |
-            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
-            BETTER_AUTH_URL=${{ secrets.BETTER_AUTH_URL }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ vars.NEXT_PUBLIC_WORKER_SERVICE_URL }}
+            GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
+            BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
 
   deploy-api:
     runs-on: ubuntu-latest
@@ -167,11 +174,16 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: verified-prof-api
           flags: --allow-unauthenticated
-
-      - name: Deploy API outputs
-        run: |
-          echo "API service URL: ${{ steps.deploy-api.outputs.url }}"
-          echo "API revision: ${{ steps.deploy-api.outputs.revision }}"
+          secrets: |
+            BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest
+            DATABASE_URL=DATABASE_URL:latest
+            GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest
+          # Pull from GitHub Secrets (Non-sensitive or Build-time values)
+          env_vars: |
+            ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
+            GOOGLE_BUCKET_NAME=${{ secrets.GCP_BUCKET_NAME }}
+            BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+            ANALYZER_PORT=8080
 
   release:
     runs-on: ubuntu-latest
