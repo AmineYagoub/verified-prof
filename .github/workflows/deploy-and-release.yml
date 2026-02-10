@@ -45,10 +45,13 @@ jobs:
 
       - name: Prepare web standalone for deployment
         run: |
+          # Create directories first
+          mkdir -p apps/web/.next/standalone/.next/static
+          mkdir -p apps/web/.next/standalone/public
           # Copy static files into standalone .next folder
-          cp -r apps/web/.next/static apps/web/.next/standalone/.next/static
+          cp -r apps/web/.next/static/* apps/web/.next/standalone/.next/static/
           # Copy public folder into standalone
-          cp -r apps/web/public apps/web/.next/standalone/public
+          cp -r apps/web/public/* apps/web/.next/standalone/public/
           # Copy .npmrc for Cloud Run
           cp apps/web/.npmrc apps/web/.next/standalone/
 
