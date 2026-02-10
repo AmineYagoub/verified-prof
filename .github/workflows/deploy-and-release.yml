@@ -60,7 +60,7 @@ jobs:
       - name: Install API production dependencies
         run: |
           cd dist/apps/analyzer
-          npm install --omit=dev
+          npm install --omit=dev -f --ignore-scripts
 
       - name: Upload API artifacts
         uses: actions/upload-artifact@v4
