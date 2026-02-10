@@ -86,42 +86,26 @@ jobs:
       - name: Prepare API for deployment
         run: |
           API_PATH="dist/apps/analyzer"
-
-          # 1. Copy the nested Prisma library so the container build can see it
           mkdir -p $API_PATH/libs/prisma/src
           cp -r libs/prisma/src/generated $API_PATH/libs/prisma/src/
+          cp package.json $API_PATH/
+          cp package-lock.json $API_PATH/ || true
 
-          # 2. Inject a Dockerfile that handles native C++ builds
           cat <<EOF > $API_PATH/Dockerfile
           FROM node:22-bookworm-slim
-
-          # Install build essentials required for tree-sitter (native modules)
-          RUN apt-get update -y && apt-get install -y \\
-              openssl \\
-              python3 \\
-              make \\
-              g++ \\
-              gcc \\
-              libc6-dev
-
+          RUN apt-get update -y && apt-get install -y openssl python3 make g++ gcc libc6-dev
           WORKDIR /app
-
-          # Copy only the package files first to leverage cache
           COPY package*.json ./
-
-          # Copy the local Prisma lib so npm install can link if needed
           COPY libs/ ./libs/
 
-          # Force a clean install to compile native tree-sitter bindings for the container
-          RUN npm install --omit=dev --force --ignore-scripts
+          # Disable Husky but allow other scripts (like tree-sitter compilation)
+          ENV HUSKY=0
+          RUN npm install --omit=dev --force 
 
-          # Now copy the rest of the built code (main.js, etc)
           COPY . .
-
           ENV PORT=8080
           ENV NODE_ENV=production
           EXPOSE 8080
-
           CMD ["node", "main.js"]
           EOF
 
