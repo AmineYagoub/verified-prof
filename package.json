@@ -6,7 +6,7 @@
     "build:zer": "nx run analyzer:build",
     "dev:zer": "nx run analyzer:serve:development",
     "dev:web": "rimraf apps/web/.next && nx run web:dev --turbopack",
-    "build:web": "rimraf apps/web/.next && nx run web:build",
+    "build:web": "rimraf apps/web/.next && nx run web:build --skip-nx-cache",
     "prepare": "husky",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "db:mig": "npx wrangler d1 migrations create verified-prof",
