@@ -40,35 +40,98 @@ jobs:
       - name: Build Next.js app
         run: npm run build:web
 
-  # deploy:
-  #   runs-on: ubuntu-latest
-  #   needs: build
-  #   # Comment out the next line to enable deployment
-  #   if: false
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+      - name: Build NestJS API
+        run: npm run build:zer
 
-  #     - name: Authenticate to Google Cloud
-  #       uses: google-github-actions/auth@v2
-  #       with:
-  #         workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-  #         service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+      - name: Upload web standalone artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-standalone
+          path: |
+            apps/web/.next/standalone
+            apps/web/.next/static
+            apps/web/public
+          retention-days: 1
 
-  #     - name: Deploy to Cloud Run
-  #       id: deploy
-  #       uses: google-github-actions/deploy-cloudrun@v3
-  #       with:
-  #         source: ./apps/web
-  #         region: us-central1
-  #         project_id: ${{ secrets.GCP_PROJECT_ID }}
-  #         service_name: verified-prof-web
+      - name: Upload API artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: dist/apps/analyzer
+          retention-days: 1
 
-  #     - name: Export deployment outputs
-  #       run: |
-  #         echo "service_url=${{ steps.deploy.outputs.url }}" >> $GITHUB_OUTPUT
-  #         echo "revision=${{ steps.deploy.outputs.revision }}" >> $GITHUB_OUTPUT
-  #       id: deploy-info
+  deploy-web:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download web standalone artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: web-standalone
+          path: ./standalone
+
+      - name: Create package.json for standalone
+        run: |
+          cat > standalone/package.json << 'EOF'
+          {
+            "name": "verified-prof-web",
+            "version": "1.0.0",
+            "scripts": {
+              "start": "node apps/web/server.js"
+            }
+          }
+          EOF
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Deploy to Cloud Run
+        id: deploy-web
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          source: ./standalone
+          region: ${{ vars.GCP_REGION || 'us-central1' }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_name: verified-prof-web
+
+      - name: Deploy web outputs
+        run: |
+          echo "Web service URL: ${{ steps.deploy-web.outputs.url }}"
+          echo "Web revision: ${{ steps.deploy-web.outputs.revision }}"
+
+  deploy-api:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download API artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: api-dist
+          path: ./api
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Deploy API to Cloud Run
+        id: deploy-api
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          source: ./api
+          region: ${{ vars.GCP_REGION || 'us-central1' }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          service_name: verified-prof-api
+          cloud_run_options: '--allow-unauthenticated'
+
+      - name: Deploy API outputs
+        run: |
+          echo "API service URL: ${{ steps.deploy-api.outputs.url }}"
+          echo "API revision: ${{ steps.deploy-api.outputs.revision }}"
 
   release:
     runs-on: ubuntu-latest
