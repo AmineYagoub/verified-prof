@@ -103,7 +103,7 @@ jobs:
           RUN npm install --omit=dev --force 
 
           COPY . .
-          ENV PORT=8080
+          ENV ANALYZER_PORT=8080
           ENV NODE_ENV=production
           EXPOSE 8080
           CMD ["node", "main.js"]
