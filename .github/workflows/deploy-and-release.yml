@@ -17,6 +17,8 @@ jobs:
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GITHUB_CLIENT_ID: ${{ secrets.GIH_CLIENT_ID }}
+      GITHUB_CLIENT_SECRET: ${{ secrets.GIH_CLIENT_SECRET }}
+      BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
