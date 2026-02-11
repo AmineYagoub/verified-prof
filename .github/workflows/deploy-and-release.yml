@@ -7,6 +7,12 @@ on:
 permissions:
   contents: write
   id-token: write
+  packages: write
+
+env:
+  REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloudrun-source-deploy
+  WEB_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloudrun-source-deploy/web
+  API_IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloudrun-source-deploy/api
 
 jobs:
   build:
@@ -15,7 +21,6 @@ jobs:
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GITHUB_CLIENT_ID: ${{ secrets.GIH_CLIENT_ID }}
-      GITHUB_CLIENT_SECRET: ${{ secrets.GIH_CLIENT_SECRET }}
       BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
     steps:
       - name: Checkout code
@@ -30,108 +35,135 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm i --force
+        run: npm ci --force
 
       - name: Generate prisma client
         run: npx prisma generate
 
-      - name: Build Apps
+      - name: Build apps
         run: |
           npm run build:web
           npm run build:zer
 
-      - name: Prepare web standalone
-        run: |
-          STANDALONE_PATH="apps/web/.next/standalone"
+  build-and-push-web:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build-push.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-          # Next.js standalone outputs a nested structure; move it to root for Cloud Run
-          # Structure: standalone/apps/web/server.js -> standalone/server.js
-          cp -r $STANDALONE_PATH/apps/web/. $STANDALONE_PATH/
-
-          # Copy static and public assets (Next.js does not do this automatically)
-          mkdir -p $STANDALONE_PATH/.next/static
-          mkdir -p $STANDALONE_PATH/public
-          cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/
-          cp -r apps/web/public/. $STANDALONE_PATH/public/
-
-          # Create a custom .dockerignore to ensure .next is NOT ignored by GCP Cloud Build
-          cat > $STANDALONE_PATH/.dockerignore <<'EOF'
-          .git
-          .github
-          node_modules
-          npm-debug.log
-          # Crucial: Un-ignore the .next folder
-          !.next
-          EOF
-
-          # Create an optimized Dockerfile
-          cat > $STANDALONE_PATH/Dockerfile <<'EOF'
-          FROM node:22-slim
-          WORKDIR /app
-          ENV NODE_ENV=production
-          ENV PORT=8080
-          ENV HOSTNAME="0.0.0.0"
-          COPY . .
-          EXPOSE 8080
-          CMD ["node", "server.js"]
-          EOF
-
-      - name: Upload web standalone artifacts
-        uses: actions/upload-artifact@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          name: web-standalone
-          path: apps/web/.next/standalone
-          retention-days: 1
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
 
-      - name: Prepare API for deployment
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Google Artifact Registry
         run: |
-          API_PATH="dist/apps/analyzer"
-          mkdir -p $API_PATH/libs/prisma/src
-          cp -r libs/prisma/src/generated $API_PATH/libs/prisma/src/
-          cp package.json package-lock.json $API_PATH/
+          gcloud auth configure-docker ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev --quiet
 
-          cat <<EOF > $API_PATH/Dockerfile
-          FROM node:22-bookworm-slim
-          RUN apt-get update -y && apt-get install -y openssl python3 make g++ gcc libc6-dev
-          WORKDIR /app
-          COPY package*.json ./
-          COPY libs/prisma/src/generated ./libs/prisma/src/generated
-          RUN npm pkg delete scripts.prepare && npm install --omit=dev --force
-          COPY . .
-          ENV PORT=8080
-          ENV NODE_ENV=production
-          EXPOSE 8080
-          CMD ["node", "main.js"]
-          EOF
-
-      - name: Upload API artifacts
-        uses: actions/upload-artifact@v4
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          name: api-dist
-          path: dist/apps/analyzer
-          retention-days: 1
+          images: ${{ env.WEB_IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+
+      - name: Build and push web image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ secrets.NEXT_PUBLIC_WORKER_SERVICE_URL }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
+            BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-and-push-api:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build-push.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Google Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_REGION || 'us-central1' }}-docker.pkg.dev --quiet
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.API_IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+            type=ref,event=branch
+
+      - name: Build and push API image
+        id: build-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/analyzer/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build-and-push-web, build-and-push-api]
     strategy:
       matrix:
         include:
           - name: web
-            artifact: web-standalone
+            image: ${{ needs.build-and-push-web.outputs.image }}
+            digest: ${{ needs.build-and-push-web.outputs.digest }}
             service: verified-prof-web
-            path: ./web
           - name: api
-            artifact: api-dist
+            image: ${{ needs.build-and-push-api.outputs.image }}
+            digest: ${{ needs.build-and-push-api.outputs.digest }}
             service: verified-prof-api
-            path: ./api
     steps:
-      - name: Download ${{ matrix.name }} artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.path }}
-
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -141,11 +173,11 @@ jobs:
       - name: Deploy ${{ matrix.name }} to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v3
         with:
-          source: ${{ matrix.path }}
+          image: ${{ matrix.image }}@${{ matrix.digest }}
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: ${{ matrix.service }}
-          flags: --allow-unauthenticated --clear-base-image
+          flags: --allow-unauthenticated
           secrets: |
             BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest
             DATABASE_URL=DATABASE_URL:latest
@@ -153,6 +185,29 @@ jobs:
             ${{ matrix.name == 'api' && 'GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest' || '' }}
           env_vars: |
             NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ vars.NEXT_PUBLIC_WORKER_SERVICE_URL }}
             GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
             BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
             ${{ matrix.name == 'api' && format('ALLOWED_ORIGINS={0}\nGOOGLE_BUCKET_NAME={1}', vars.ALLOWED_ORIGINS, secrets.GCP_BUCKET_NAME) || '' }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build, deploy]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+
+      - name: Install semantic-release
+        run: npm ci --force
+
+      - name: Create Semantic Release
+        run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
