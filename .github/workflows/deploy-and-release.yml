@@ -56,21 +56,21 @@ jobs:
           echo "=== Debug: .next inside apps/web ==="
           ls -la $STANDALONE_PATH/apps/web/.next/ | head -15
 
-          # Move .next folder from nested location to root using tar to preserve everything
+          # Copy .next folder from nested location to root using rsync
           echo ""
-          echo "=== Moving .next folder to root using tar ==="
-          cd $STANDALONE_PATH/apps/web && tar cf - .next | (cd $STANDALONE_PATH && tar xvf -)
+          echo "=== Copying .next folder to root ==="
+          rsync -av $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/
 
-          # Move server.js to root
+          # Copy server.js to root
           echo ""
-          echo "=== Moving server.js to root ==="
-          mv -v $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
+          echo "=== Copying server.js to root ==="
+          cp -v $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
 
           # Verify .next exists at root
           echo ""
           echo "=== Verifying .next at root ==="
           if [ ! -d "$STANDALONE_PATH/.next" ]; then
-            echo "ERROR: .next folder not found at root after move!"
+            echo "ERROR: .next folder not found at root after copy!"
             exit 1
           fi
           echo "SUCCESS: .next folder found at root"
