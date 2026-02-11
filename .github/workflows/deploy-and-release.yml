@@ -169,14 +169,15 @@ jobs:
       matrix:
         include:
           - name: web
-            # Use the image name directly as a string or from the job output
-            image_base: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/web
-            digest: ${{ needs.build-and-push-web.outputs.digest }}
             service: verified-prof-web
+            # Pass only the path segment or a variable (vars are allowed)
+            image_path: cloud-run-source-deploy/web
+            digest: ${{ needs.build-and-push-web.outputs.digest }}
           - name: api
-            image_base: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/api
-            digest: ${{ needs.build-and-push-api.outputs.digest }}
             service: verified-prof-api
+            image_path: cloud-run-source-deploy/api
+            digest: ${{ needs.build-and-push-api.outputs.digest }}
+
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -187,8 +188,7 @@ jobs:
       - name: Deploy ${{ matrix.name }} to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v3
         with:
-          # Construct the full image string here
-          image: ${{ matrix.image_base }}@${{ matrix.digest }}
+          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ matrix.image_path }}@${{ matrix.digest }}
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: ${{ matrix.service }}
