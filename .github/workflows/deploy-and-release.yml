@@ -35,7 +35,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci --force
+        run: npm install --force
 
       - name: Generate prisma client
         run: npx prisma generate
@@ -205,7 +205,7 @@ jobs:
           node-version: '22.14.0'
 
       - name: Install semantic-release
-        run: npm ci --force
+        run: npm install --force
 
       - name: Create Semantic Release
         run: npx semantic-release
