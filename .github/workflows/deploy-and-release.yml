@@ -54,7 +54,7 @@ jobs:
       packages: write
       id-token: write
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
+      image: ${{ env.WEB_IMAGE }}
       digest: ${{ steps.build-push.outputs.digest }}
     steps:
       - name: Checkout code
@@ -113,7 +113,7 @@ jobs:
       packages: write
       id-token: write
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
+      image: ${{ env.API_IMAGE }}
       digest: ${{ steps.build-push.outputs.digest }}
     steps:
       - name: Checkout code
