@@ -2,8 +2,7 @@ name: Deploy and Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: write
@@ -13,7 +12,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Only include build-time environment variables that are actually needed during build
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GITHUB_CLIENT_ID: ${{ secrets.GIH_CLIENT_ID }}
@@ -37,87 +35,46 @@ jobs:
       - name: Generate prisma client
         run: npx prisma generate
 
-      - name: Build Next.js app
-        run: npm run build:web
+      - name: Build Apps
+        run: |
+          npm run build:web
+          npm run build:zer
 
-      - name: Build NestJS API
-        run: npm run build:zer
-
-      - name: Prepare web standalone for deployment
+      - name: Prepare web standalone
         run: |
           STANDALONE_PATH="apps/web/.next/standalone"
 
-          echo "=== Debug: Initial standalone structure ==="
-          ls -la $STANDALONE_PATH/
-          echo ""
-          echo "=== Debug: apps/web subfolder ==="
-          ls -la $STANDALONE_PATH/apps/web/
-          echo ""
-          echo "=== Debug: .next inside apps/web ==="
-          ls -la $STANDALONE_PATH/apps/web/.next/ | head -15
+          # Next.js standalone outputs a nested structure; move it to root for Cloud Run
+          # Structure: standalone/apps/web/server.js -> standalone/server.js
+          cp -r $STANDALONE_PATH/apps/web/. $STANDALONE_PATH/
 
-          # Copy .next folder from nested location to root using rsync
-          echo ""
-          echo "=== Copying .next folder to root ==="
-          rsync -av $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/
+          # Copy static and public assets (Next.js does not do this automatically)
+          mkdir -p $STANDALONE_PATH/.next/static
+          mkdir -p $STANDALONE_PATH/public
+          cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/
+          cp -r apps/web/public/. $STANDALONE_PATH/public/
 
-          # Copy server.js to root
-          echo ""
-          echo "=== Copying server.js to root ==="
-          cp -v $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
+          # Create a custom .dockerignore to ensure .next is NOT ignored by GCP Cloud Build
+          cat > $STANDALONE_PATH/.dockerignore <<'EOF'
+          .git
+          .github
+          node_modules
+          npm-debug.log
+          # Crucial: Un-ignore the .next folder
+          !.next
+          EOF
 
-          # Verify .next exists at root
-          echo ""
-          echo "=== Verifying .next at root ==="
-          if [ ! -d "$STANDALONE_PATH/.next" ]; then
-            echo "ERROR: .next folder not found at root after copy!"
-            exit 1
-          fi
-          echo "SUCCESS: .next folder found at root"
-          ls -la $STANDALONE_PATH/.next/ | head -15
-
-          # Create static and public folders
-          mkdir -pv $STANDALONE_PATH/.next/static
-          mkdir -pv $STANDALONE_PATH/public
-
-          # Copy static assets
-          if [ -d "apps/web/.next/static" ]; then
-            echo ""
-            echo "=== Copying static assets ==="
-            cp -rv apps/web/.next/static/. $STANDALONE_PATH/.next/static/
-          fi
-
-          # Copy public files
-          if [ -d "apps/web/public" ]; then
-            echo ""
-            echo "=== Copying public files ==="
-            cp -rv apps/web/public/. $STANDALONE_PATH/public/
-          fi
-
-          # Create Dockerfile
+          # Create an optimized Dockerfile
           cat > $STANDALONE_PATH/Dockerfile <<'EOF'
           FROM node:22-slim
           WORKDIR /app
-          COPY . .
           ENV NODE_ENV=production
           ENV PORT=8080
           ENV HOSTNAME="0.0.0.0"
+          COPY . .
           EXPOSE 8080
           CMD ["node", "server.js"]
           EOF
-
-          # Remove any .dockerignore that might exclude hidden folders
-          rm -fv $STANDALONE_PATH/.dockerignore .dockerignore
-
-          # Final verification
-          echo ""
-          echo "=== Final structure at $STANDALONE_PATH ==="
-          ls -la $STANDALONE_PATH/
-
-          # Show all .next folders found
-          echo ""
-          echo "=== All .next folders found ==="
-          find $STANDALONE_PATH -name ".next" -type d
 
       - name: Upload web standalone artifacts
         uses: actions/upload-artifact@v4
@@ -131,28 +88,17 @@ jobs:
           API_PATH="dist/apps/analyzer"
           mkdir -p $API_PATH/libs/prisma/src
           cp -r libs/prisma/src/generated $API_PATH/libs/prisma/src/
-          cp package.json $API_PATH/
-          cp package-lock.json $API_PATH/ || true
+          cp package.json package-lock.json $API_PATH/
 
           cat <<EOF > $API_PATH/Dockerfile
           FROM node:22-bookworm-slim
           RUN apt-get update -y && apt-get install -y openssl python3 make g++ gcc libc6-dev
           WORKDIR /app
-
-          # Copy package files
           COPY package*.json ./
-
-          # Copy prisma generated client (only what we need)
           COPY libs/prisma/src/generated ./libs/prisma/src/generated
-
-          # Disable Husky but allow other scripts (like tree-sitter compilation)
-          RUN npm pkg delete scripts.prepare
-          ENV HUSKY=0
-          RUN npm install --omit=dev --force
-
-          # Copy the built application
+          RUN npm pkg delete scripts.prepare && npm install --omit=dev --force
           COPY . .
-          ENV ANALYZER_PORT=8080
+          ENV PORT=8080
           ENV NODE_ENV=production
           EXPOSE 8080
           CMD ["node", "main.js"]
@@ -165,26 +111,26 @@ jobs:
           path: dist/apps/analyzer
           retention-days: 1
 
-  deploy-web:
+  deploy:
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+      matrix:
+        include:
+          - name: web
+            artifact: web-standalone
+            service: verified-prof-web
+            path: ./web
+          - name: api
+            artifact: api-dist
+            service: verified-prof-api
+            path: ./api
     steps:
-      - name: Download web standalone artifacts
+      - name: Download ${{ matrix.name }} artifacts
         uses: actions/download-artifact@v4
         with:
-          name: web-standalone
-          path: ./standalone
-
-      - name: Verify artifact contents
-        run: |
-          echo "=== Contents of ./standalone ==="
-          ls -la ./standalone/
-          echo ""
-          echo "=== Checking for .next folder ==="
-          ls -la ./standalone/.next/ || echo "ERROR: .next folder not found!"
-          echo ""
-          echo "=== Checking for Dockerfile ==="
-          cat ./standalone/Dockerfile || echo "ERROR: Dockerfile not found!"
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -192,83 +138,21 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
 
-      - name: Deploy to Cloud Run
-        id: deploy-web
+      - name: Deploy ${{ matrix.name }} to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v3
         with:
-          source: ./standalone
+          source: ${{ matrix.path }}
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service: verified-prof-web
+          service: ${{ matrix.service }}
           flags: --allow-unauthenticated --clear-base-image
           secrets: |
             BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest
             DATABASE_URL=DATABASE_URL:latest
             GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest
-          # Pull from GitHub Secrets (Non-sensitive or Build-time values)
+            ${{ matrix.name == 'api' && 'GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest' || '' }}
           env_vars: |
             NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
-            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ vars.NEXT_PUBLIC_WORKER_SERVICE_URL }}
             GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
             BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
-
-  deploy-api:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download API artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: api-dist
-          path: ./api
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
-
-      - name: Deploy API to Cloud Run
-        id: deploy-api
-        uses: google-github-actions/deploy-cloudrun@v3
-        with:
-          source: ./api
-          region: ${{ vars.GCP_REGION || 'us-central1' }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service: verified-prof-api
-          flags: --allow-unauthenticated
-          secrets: |
-            BETTER_AUTH_SECRET=BETTER_AUTH_SECRET:latest
-            DATABASE_URL=DATABASE_URL:latest
-            GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest
-            GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest
-          # Pull from GitHub Secrets (Non-sensitive or Build-time values)
-          env_vars: |
-            ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
-            GOOGLE_BUCKET_NAME=${{ secrets.GCP_BUCKET_NAME }}
-            GOOGLE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-            BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
-            GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
-            ANALYZER_PORT=8080
-
-  release:
-    runs-on: ubuntu-latest
-    needs: [build, deploy-web, deploy-api]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.14.0'
-
-      - name: Install semantic-release dependencies
-        run: npm i --force
-
-      - name: Create Semantic Release
-        run: npx semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            ${{ matrix.name == 'api' && format('ALLOWED_ORIGINS={0}\nGOOGLE_BUCKET_NAME={1}', vars.ALLOWED_ORIGINS, secrets.GCP_BUCKET_NAME) || '' }}
