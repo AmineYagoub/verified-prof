@@ -52,25 +52,29 @@ jobs:
           echo ""
           echo "=== Debug: apps/web subfolder ==="
           ls -la $STANDALONE_PATH/apps/web/
-
-          # Copy .next folder from nested location to root
           echo ""
-          echo "=== Copying .next folder ==="
-          cp -rv $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/
+          echo "=== Debug: .next inside apps/web ==="
+          ls -la $STANDALONE_PATH/apps/web/.next/ | head -15
 
-          # Copy server.js to root
+          # Move .next folder from nested location to root using tar to preserve everything
           echo ""
-          echo "=== Copying server.js ==="
-          cp -v $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
+          echo "=== Moving .next folder to root using tar ==="
+          cd $STANDALONE_PATH/apps/web && tar cf - .next | (cd $STANDALONE_PATH && tar xvf -)
+
+          # Move server.js to root
+          echo ""
+          echo "=== Moving server.js to root ==="
+          mv -v $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
 
           # Verify .next exists at root
           echo ""
           echo "=== Verifying .next at root ==="
           if [ ! -d "$STANDALONE_PATH/.next" ]; then
-            echo "ERROR: .next folder not found at root after copy!"
+            echo "ERROR: .next folder not found at root after move!"
             exit 1
           fi
-          ls -la $STANDALONE_PATH/.next/
+          echo "SUCCESS: .next folder found at root"
+          ls -la $STANDALONE_PATH/.next/ | head -15
 
           # Create static and public folders
           mkdir -pv $STANDALONE_PATH/.next/static
@@ -90,11 +94,6 @@ jobs:
             cp -rv apps/web/public/. $STANDALONE_PATH/public/
           fi
 
-          # Final verification
-          echo ""
-          echo "=== Final structure ==="
-          ls -la $STANDALONE_PATH/
-
           # Create Dockerfile
           cat > $STANDALONE_PATH/Dockerfile <<'EOF'
           FROM node:22-slim
@@ -107,9 +106,18 @@ jobs:
           CMD ["node", "server.js"]
           EOF
 
+          # Remove any .dockerignore that might exclude hidden folders
+          rm -fv $STANDALONE_PATH/.dockerignore .dockerignore
+
+          # Final verification
           echo ""
-          echo "=== Dockerfile created ==="
-          cat $STANDALONE_PATH/Dockerfile
+          echo "=== Final structure at $STANDALONE_PATH ==="
+          ls -la $STANDALONE_PATH/
+
+          # Show all .next folders found
+          echo ""
+          echo "=== All .next folders found ==="
+          find $STANDALONE_PATH -name ".next" -type d
 
       - name: Upload web standalone artifacts
         uses: actions/upload-artifact@v4
