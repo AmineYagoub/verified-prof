@@ -45,55 +45,71 @@ jobs:
 
       - name: Prepare web standalone for deployment
         run: |
-          # 1. Define paths
           STANDALONE_PATH="apps/web/.next/standalone"
 
-          # 2. Verify .next folder exists in standalone output
-          if [ ! -d "$STANDALONE_PATH/apps/web/.next" ]; then
-            echo "Error: .next folder not found in standalone output"
-            ls -la $STANDALONE_PATH/
+          echo "=== Debug: Initial standalone structure ==="
+          ls -la $STANDALONE_PATH/
+          echo ""
+          echo "=== Debug: apps/web subfolder ==="
+          ls -la $STANDALONE_PATH/apps/web/
+
+          # Copy .next folder from nested location to root
+          echo ""
+          echo "=== Copying .next folder ==="
+          cp -rv $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/
+
+          # Copy server.js to root
+          echo ""
+          echo "=== Copying server.js ==="
+          cp -v $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
+
+          # Verify .next exists at root
+          echo ""
+          echo "=== Verifying .next at root ==="
+          if [ ! -d "$STANDALONE_PATH/.next" ]; then
+            echo "ERROR: .next folder not found at root after copy!"
             exit 1
           fi
+          ls -la $STANDALONE_PATH/.next/
 
-          # 3. Move the internal app build and the hidden .next folder to the standalone root
-          # We use -a (archive) to ensure hidden folders like .next are preserved
-          cp -a $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/.next
+          # Create static and public folders
+          mkdir -pv $STANDALONE_PATH/.next/static
+          mkdir -pv $STANDALONE_PATH/public
 
-          # Move server.js to root
-          cp $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
-
-          # 4. Create the standard asset folders Next.js needs
-          mkdir -p $STANDALONE_PATH/.next/static
-          mkdir -p $STANDALONE_PATH/public
-
-          # 5. Copy static assets and public files
+          # Copy static assets
           if [ -d "apps/web/.next/static" ]; then
-            cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/
-          fi
-          if [ -d "apps/web/public" ]; then
-            cp -r apps/web/public/. $STANDALONE_PATH/public/
+            echo ""
+            echo "=== Copying static assets ==="
+            cp -rv apps/web/.next/static/. $STANDALONE_PATH/.next/static/
           fi
 
-          # 6. Create the Dockerfile
-          cat <<'EOF' > $STANDALONE_PATH/Dockerfile
+          # Copy public files
+          if [ -d "apps/web/public" ]; then
+            echo ""
+            echo "=== Copying public files ==="
+            cp -rv apps/web/public/. $STANDALONE_PATH/public/
+          fi
+
+          # Final verification
+          echo ""
+          echo "=== Final structure ==="
+          ls -la $STANDALONE_PATH/
+
+          # Create Dockerfile
+          cat > $STANDALONE_PATH/Dockerfile <<'EOF'
           FROM node:22-slim
           WORKDIR /app
-
-          # Copy everything from the current directory (the flattened standalone)
           COPY . .
-
-          # Verify .next folder exists
-          RUN ls -la /app/.next || (echo "Error: .next folder not found" && exit 1)
-
           ENV NODE_ENV=production
           ENV PORT=8080
           ENV HOSTNAME="0.0.0.0"
-
           EXPOSE 8080
-
-          # Next.js standalone server.js looks for ./.next relative to itself
           CMD ["node", "server.js"]
           EOF
+
+          echo ""
+          echo "=== Dockerfile created ==="
+          cat $STANDALONE_PATH/Dockerfile
 
       - name: Upload web standalone artifacts
         uses: actions/upload-artifact@v4
@@ -150,6 +166,17 @@ jobs:
         with:
           name: web-standalone
           path: ./standalone
+
+      - name: Verify artifact contents
+        run: |
+          echo "=== Contents of ./standalone ==="
+          ls -la ./standalone/
+          echo ""
+          echo "=== Checking for .next folder ==="
+          ls -la ./standalone/.next/ || echo "ERROR: .next folder not found!"
+          echo ""
+          echo "=== Checking for Dockerfile ==="
+          cat ./standalone/Dockerfile || echo "ERROR: Dockerfile not found!"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
