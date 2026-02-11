@@ -48,31 +48,36 @@ jobs:
           # 1. Define paths
           STANDALONE_PATH="apps/web/.next/standalone"
 
-          # 2. Flatten the structure: Move everything inside standalone to a temp folder, 
-          # then move the nested app contents to the standalone root.
-          # This fixes the 'module not found' by ensuring node_modules is where server.js expects.
-          cp -r $STANDALONE_PATH/apps/web/. $STANDALONE_PATH/
+          # 2. Move the internal app build and the hidden .next folder to the standalone root
+          # We use -a (archive) or explicit paths to ensure hidden folders like .next are moved
+          cp -r $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/.next
+
+          # Move other files (like server.js and package.json) if they exist in the subfolder
+          cp $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js || true
 
           # 3. Create the standard asset folders Next.js needs
           mkdir -p $STANDALONE_PATH/.next/static
           mkdir -p $STANDALONE_PATH/public
 
-          # 4. Copy static assets to the new flattened root
+          # 4. Copy static assets and public files
           if [ -d "apps/web/.next/static" ]; then cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/; fi
           if [ -d "apps/web/public" ]; then cp -r apps/web/public/. $STANDALONE_PATH/public/; fi
 
-          # 5. Create the Dockerfile at the NEW root
+          # 5. Create the Dockerfile
           cat <<EOF > $STANDALONE_PATH/Dockerfile
           FROM node:22-slim
           WORKDIR /app
+
+          # Copy everything from the current directory (the flattened standalone)
           COPY . .
-          # In standalone mode, 'next' is inside the bundled node_modules
-          ENV NODE_PATH=.
+
+          ENV NODE_ENV=production
           ENV PORT=8080
           ENV HOSTNAME="0.0.0.0"
-          ENV NODE_ENV=production
+
           EXPOSE 8080
-          # Since we flattened the folder, server.js is now at the root
+
+          # Next.js standalone server.js looks for ./.next relative to itself
           CMD ["node", "server.js"]
           EOF
 
