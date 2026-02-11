@@ -13,12 +13,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
+      # Only include build-time environment variables that are actually needed during build
       NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GITHUB_CLIENT_ID: ${{ secrets.GIH_CLIENT_ID }}
-      GITHUB_CLIENT_SECRET: ${{ secrets.GIH_CLIENT_SECRET }}
-      BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
-      BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,28 +46,42 @@ jobs:
           # 1. Define paths
           STANDALONE_PATH="apps/web/.next/standalone"
 
-          # 2. Move the internal app build and the hidden .next folder to the standalone root
-          # We use -a (archive) or explicit paths to ensure hidden folders like .next are moved
-          cp -r $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/.next
+          # 2. Verify .next folder exists in standalone output
+          if [ ! -d "$STANDALONE_PATH/apps/web/.next" ]; then
+            echo "Error: .next folder not found in standalone output"
+            ls -la $STANDALONE_PATH/
+            exit 1
+          fi
 
-          # Move other files (like server.js and package.json) if they exist in the subfolder
-          cp $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js || true
+          # 3. Move the internal app build and the hidden .next folder to the standalone root
+          # We use -a (archive) to ensure hidden folders like .next are preserved
+          cp -a $STANDALONE_PATH/apps/web/.next $STANDALONE_PATH/.next
 
-          # 3. Create the standard asset folders Next.js needs
+          # Move server.js to root
+          cp $STANDALONE_PATH/apps/web/server.js $STANDALONE_PATH/server.js
+
+          # 4. Create the standard asset folders Next.js needs
           mkdir -p $STANDALONE_PATH/.next/static
           mkdir -p $STANDALONE_PATH/public
 
-          # 4. Copy static assets and public files
-          if [ -d "apps/web/.next/static" ]; then cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/; fi
-          if [ -d "apps/web/public" ]; then cp -r apps/web/public/. $STANDALONE_PATH/public/; fi
+          # 5. Copy static assets and public files
+          if [ -d "apps/web/.next/static" ]; then
+            cp -r apps/web/.next/static/. $STANDALONE_PATH/.next/static/
+          fi
+          if [ -d "apps/web/public" ]; then
+            cp -r apps/web/public/. $STANDALONE_PATH/public/
+          fi
 
-          # 5. Create the Dockerfile
-          cat <<EOF > $STANDALONE_PATH/Dockerfile
+          # 6. Create the Dockerfile
+          cat <<'EOF' > $STANDALONE_PATH/Dockerfile
           FROM node:22-slim
           WORKDIR /app
 
           # Copy everything from the current directory (the flattened standalone)
           COPY . .
+
+          # Verify .next folder exists
+          RUN ls -la /app/.next || (echo "Error: .next folder not found" && exit 1)
 
           ENV NODE_ENV=production
           ENV PORT=8080
@@ -100,14 +112,19 @@ jobs:
           FROM node:22-bookworm-slim
           RUN apt-get update -y && apt-get install -y openssl python3 make g++ gcc libc6-dev
           WORKDIR /app
+
+          # Copy package files
           COPY package*.json ./
-          COPY libs/ ./libs/
+
+          # Copy prisma generated client (only what we need)
+          COPY libs/prisma/src/generated ./libs/prisma/src/generated
 
           # Disable Husky but allow other scripts (like tree-sitter compilation)
           RUN npm pkg delete scripts.prepare
           ENV HUSKY=0
-          RUN npm install --omit=dev --force 
+          RUN npm install --omit=dev --force
 
+          # Copy the built application
           COPY . .
           ENV ANALYZER_PORT=8080
           ENV NODE_ENV=production
@@ -140,7 +157,7 @@ jobs:
 
       - name: Deploy to Cloud Run
         id: deploy-web
-        uses: google-github-actions/deploy-cloudrun@v2 # Updated to v2 stable
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           source: ./standalone
           region: ${{ vars.GCP_REGION || 'us-central1' }}
