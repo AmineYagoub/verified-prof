@@ -1,10 +1,9 @@
 FROM node:22-alpine AS base
-RUN apk add --no-cache openssl
+RUN apk add --no-cache python3 make g++ libc6-compat curl openssl
 
 
 ## -------------------- deps stage --------------------
 FROM base AS builder
-RUN apk add --no-cache python3 make g++ libc6-compat curl
 WORKDIR /app
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 # Increase Node heap for dependency install to avoid OOM
@@ -35,7 +34,7 @@ RUN adduser --system --uid 1001 nestjs
 
 # Copy prisma generated client
 COPY --chown=nestjs:nodejs --from=builder /app/libs/prisma/src/generated ./libs/prisma/src/generated
-COPY --chown=nestjs:nodejs --from=builder /app/dist/apps/worker ./
+COPY --chown=nestjs:nodejs --from=builder /app/dist/apps/analyzer ./
 
 # Disable Husky and install production dependencies
 RUN npm pkg delete scripts.prepare && \
