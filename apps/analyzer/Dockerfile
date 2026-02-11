@@ -37,8 +37,8 @@ COPY --chown=nestjs:nodejs --from=builder /app/libs/prisma/src/generated ./libs/
 COPY --chown=nestjs:nodejs --from=builder /app/dist/apps/analyzer ./
 
 # Disable Husky and install production dependencies
-RUN npm pkg delete scripts.prepare && \
-    ENV HUSKY=0 
+RUN npm pkg delete scripts.prepare
+ENV HUSKY=0 
 RUN npm install --omit=dev --force && npm cache clean --force
 
 USER nestjs
