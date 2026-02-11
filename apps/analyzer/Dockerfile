@@ -1,45 +1,52 @@
-FROM node:22-bookworm-slim AS base
+FROM node:22-alpine AS base
+RUN apk add --no-cache openssl
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    openssl \
-    python3 \
-    make \
-    g++ \
-    gcc \
-    libc6-dev \
-    && rm -rf /var/lib/apt/lists/*
 
+## -------------------- deps stage --------------------
+FROM base AS builder
+RUN apk add --no-cache python3 make g++ libc6-compat curl
+WORKDIR /app
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+# Increase Node heap for dependency install to avoid OOM
+RUN --mount=type=cache,target=/root/.npm NODE_OPTIONS=--max-old-space-size=4096 npm install --no-audit --no-fund --force
+COPY . .
+
+# Build arguments for environment variables needed at build time
+ARG DATABASE_URL
+ARG GITHUB_CLIENT_ID
+ARG GITHUB_CLIENT_SECRET
+ARG BETTER_AUTH_URL
+
+ENV DATABASE_URL=${DATABASE_URL}
+ENV GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+ENV GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+ENV BETTER_AUTH_URL=${BETTER_AUTH_URL}
+
+RUN npx prisma generate
+RUN npx nx run analyzer:build --skip-nx-cache
+
+
+# Production image, copy all the files and run the app
+FROM base AS runner
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
-
-# Install dependencies
-RUN npm ci --omit=dev
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nestjs
 
 # Copy prisma generated client
-COPY libs/prisma/src/generated ./libs/prisma/src/generated
+COPY --chown=nestjs:nodejs --from=builder /app/libs/prisma/src/generated ./libs/prisma/src/generated
+COPY --chown=nestjs:nodejs --from=builder /app/dist/apps/worker ./
 
 # Disable Husky and install production dependencies
 RUN npm pkg delete scripts.prepare && \
-    ENV HUSKY=0 && \
-    npm rebuild
+    ENV HUSKY=0 
+RUN npm install --omit=dev --force && npm cache clean --force
 
-# Copy built application
-COPY dist/apps/analyzer/ ./
-
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 appuser
-
-# Set correct permissions
-RUN chown -R appuser:nodejs /app
-
-USER appuser
+USER nestjs
 
 ENV NODE_ENV=production
 ENV PORT=8080
+ENV ANALYZER_PORT=8080
 EXPOSE 8080
 
-CMD ["node", "main.js"]
+CMD [ "node", "./main"]

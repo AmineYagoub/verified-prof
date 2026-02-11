@@ -154,6 +154,11 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
+            GITHUB_CLIENT_SECRET=${{ secrets.GIH_CLIENT_SECRET }}
+            BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,scope=api
 
