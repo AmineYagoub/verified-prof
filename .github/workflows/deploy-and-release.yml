@@ -169,13 +169,12 @@ jobs:
       matrix:
         include:
           - name: web
-            image: ${{ needs.build-and-push-web.outputs.image }}
-            digest: ${{ needs.build-and-push-web.outputs.digest }}
+            image: ${{ env.WEB_IMAGE }}@${{ needs.build-and-push-web.outputs.digest }}
             service: verified-prof-web
           - name: api
-            image: ${{ needs.build-and-push-api.outputs.image }}
-            digest: ${{ needs.build-and-push-api.outputs.digest }}
+            image: ${{ env.API_IMAGE }}@${{ needs.build-and-push-api.outputs.digest }}
             service: verified-prof-api
+
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -186,7 +185,7 @@ jobs:
       - name: Deploy ${{ matrix.name }} to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v3
         with:
-          image: ${{ matrix.image }}@${{ matrix.digest }}
+          image: ${{ matrix.image }}
           region: ${{ vars.GCP_REGION || 'us-central1' }}
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           service: ${{ matrix.service }}
