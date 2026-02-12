@@ -200,8 +200,8 @@ jobs:
             GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest
             ${{ matrix.name == 'api' && 'GOOGLE_AI_STUDIO_API_KEY=GOOGLE_AI_STUDIO_API_KEY:latest' || '' }}
           env_vars: |
-            ${{ matrix.name == 'web' && format('NEXT_PUBLIC_APP_URL={0}', vars.NEXT_PUBLIC_APP_URL) || '' }}
-            ${{ matrix.name == 'web' && format('NEXT_PUBLIC_WORKER_SERVICE_URL={0}', vars.NEXT_PUBLIC_WORKER_SERVICE_URL) || '' }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ vars.NEXT_PUBLIC_WORKER_SERVICE_URL }}
             GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
             BETTER_AUTH_URL=${{ vars.BETTER_AUTH_URL }}
             ${{ matrix.name == 'api' && format('ALLOWED_ORIGINS={0}', vars.ALLOWED_ORIGINS) || '' }}
