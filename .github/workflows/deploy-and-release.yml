@@ -18,7 +18,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+      NEXT_PUBLIC_WORKER_SERVICE_URL: ${{ vars.NEXT_PUBLIC_WORKER_SERVICE_URL }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       GITHUB_CLIENT_ID: ${{ secrets.GIH_CLIENT_ID }}
       GITHUB_CLIENT_SECRET: ${{ secrets.GIH_CLIENT_SECRET }}
@@ -96,8 +97,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }}
-            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ secrets.NEXT_PUBLIC_WORKER_SERVICE_URL }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_WORKER_SERVICE_URL=${{ vars.NEXT_PUBLIC_WORKER_SERVICE_URL }}
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             GITHUB_CLIENT_ID=${{ secrets.GIH_CLIENT_ID }}
             GITHUB_CLIENT_SECRET=${{ secrets.GIH_CLIENT_SECRET }}
